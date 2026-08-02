@@ -145,11 +145,8 @@ class FileResolver:
         Primarily used for HLS mode to check if the buffer is full before starting playback.
         """
         stream_uid_str = str(self.stream_uid)
-        return sum(
-            os.path.getsize(os.path.join(self.tmp_dir, f))
-            for f in os.listdir(self.tmp_dir)
-            if stream_uid_str in f
-        )
+        with os.scandir(self.tmp_dir) as entries:
+            return sum(entry.stat().st_size for entry in entries if stream_uid_str in entry.name)
 
     def handle_aegissub_subtile(self, file_path: str) -> bool:
         """Find and set the ASS subtitle file path for an media file.
