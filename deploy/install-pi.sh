@@ -10,6 +10,10 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SONGS_DIR=/mnt/media/karaoke
 # Inside the Samba-shared Notflex data root so the PC sees it as K:\karaoke-analyse.
 BRIDGE_DIR=/mnt/media/data/karaoke-analyse
+# Job exchange with the PC workshop (K:\karaoke-atelier) and the permanent
+# library of converted songs (K:\karaoke-bibliotheque).
+ATELIER_DIR=/mnt/media/data/karaoke-atelier
+BIBLIO_DIR=/mnt/media/data/karaoke-bibliotheque
 DATA_DIR="$HOME/.pikaraoke"
 ENV_FILE="$DATA_DIR/pikaraoke.env"
 CONFIG_FILE="$DATA_DIR/config.ini"
@@ -29,9 +33,18 @@ uv tool install --force --reinstall "$REPO_DIR"
 
 echo "== Data folders =="
 # /mnt/media is root-owned: create as root, hand over to the service user.
-sudo mkdir -p "$SONGS_DIR" "$BRIDGE_DIR"
-sudo chown "$USER:$USER" "$SONGS_DIR" "$BRIDGE_DIR"
+sudo mkdir -p "$SONGS_DIR" "$BRIDGE_DIR" "$ATELIER_DIR/entree" "$ATELIER_DIR/etat" "$BIBLIO_DIR"
+sudo chown -R "$USER:$USER" "$SONGS_DIR" "$BRIDGE_DIR" "$ATELIER_DIR" "$BIBLIO_DIR"
 mkdir -p "$DATA_DIR"
+
+# Converted songs live in the Samba share but must appear in the scanned
+# library; the scanner does not follow symlinks, so bind-mount them in.
+BIBLIO_MOUNT="$SONGS_DIR/bibliotheque"
+sudo mkdir -p "$BIBLIO_MOUNT"
+if ! grep -q "karaoke-bibliotheque" /etc/fstab; then
+    echo "$BIBLIO_DIR $BIBLIO_MOUNT none bind,nofail,x-systemd.requires=/mnt/media 0 0" | sudo tee -a /etc/fstab > /dev/null
+fi
+mountpoint -q "$BIBLIO_MOUNT" || sudo mount "$BIBLIO_MOUNT"
 
 # Admin password lives on the Pi only, never in the repo.
 if [ ! -f "$ENV_FILE" ]; then

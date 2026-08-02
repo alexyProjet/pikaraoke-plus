@@ -1508,3 +1508,79 @@ msgstr ""
 msgid "Confirm"
 msgstr "Confirmer"
 
+
+#. Title of the workshop page (song preparation and conversions).
+msgid "Workshop"
+msgstr "Atelier"
+
+#. Shown when the server was started without a workshop folder.
+msgid ""
+"The workshop folder is not configured (--atelier-path). Downloads still "
+"work, conversions are disabled."
+msgstr ""
+"Le dossier d'atelier n'est pas configuré (--atelier-path). Les "
+"téléchargements fonctionnent, les conversions sont désactivées."
+
+#. Section title: batch-download songs before a party.
+msgid "Prepare the party"
+msgstr "Préparer la soirée"
+
+#. Help text above the textarea where the host pastes YouTube links.
+msgid ""
+"Paste YouTube links (one per line). They are downloaded to the library "
+"without being added to the queue."
+msgstr ""
+"Colle des liens YouTube (un par ligne). Ils seront téléchargés dans la "
+"bibliothèque sans passer par la file d'attente."
+
+#. Checkbox label: also send the downloaded songs to the PC for vocal removal.
+msgid "Also convert to instrumental on the PC (removes vocals)"
+msgstr "Convertir aussi en instrumental sur le PC (supprime la voix)"
+
+#. Button that starts downloading the pasted links.
+msgid "Download to library"
+msgstr "Télécharger dans la bibliothèque"
+
+#. Section title: send a song that is already in the library to the PC.
+msgid "Send an existing song to the workshop"
+msgstr "Envoyer une chanson existante à l'atelier"
+
+#. Placeholder of the library search box on the workshop page.
+msgid "Search your library"
+msgstr "Chercher dans la bibliothèque"
+
+#. Section title: list of conversion jobs and their progress.
+msgid "Workshop jobs"
+msgstr "Travaux de l'atelier"
+
+#. Shown when there is no conversion job yet.
+msgid "No jobs yet."
+msgstr "Aucun travail pour l'instant."
+
+#. Job state: the PC has not picked up the job yet.
+msgid "Waiting for the PC"
+msgstr "En attente du PC"
+
+#. Job state: the PC is separating vocals right now.
+msgid "Converting"
+msgstr "Conversion en cours"
+
+#. Job state: the converted file is in the library.
+msgid "Done - available in the library"
+msgstr "Terminé — disponible dans la bibliothèque"
+
+#. Notification after submitting links: number of downloads started.
+msgid "Downloads started: "
+msgstr "Téléchargements lancés : "
+
+#. Notification when some pasted links were not valid YouTube links.
+msgid "Ignored invalid links: "
+msgstr "Liens invalides ignorés : "
+
+#. Notification after sending a song to the workshop.
+msgid "Song sent to the workshop"
+msgstr "Chanson envoyée à l'atelier"
+
+#. Button that sends one library song to the workshop.
+msgid "Send"
+msgstr "Envoyer"

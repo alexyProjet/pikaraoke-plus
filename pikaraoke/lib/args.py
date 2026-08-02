@@ -98,6 +98,14 @@ def parse_pikaraoke_args() -> argparse.Namespace:
         required=False,
     )
     parser.add_argument(
+        "--atelier-path",
+        nargs="+",
+        help="Shared folder used to exchange conversion jobs with the PC "
+        "workshop (atelier/atelier_pc.py). Enables the workshop page. (default: none)",
+        default=None,
+        required=False,
+    )
+    parser.add_argument(
         "--youtubedl-proxy",
         help="Proxy server to use for yt-dlp, in case blocked by a firewall",
         required=False,
@@ -379,6 +387,9 @@ def parse_pikaraoke_args() -> argparse.Namespace:
 
     copy_path = arg_path_parse(args.post_download_copy_path)
     args.post_download_copy_path = os.path.expanduser(copy_path) if copy_path else None
+
+    atelier_path = arg_path_parse(args.atelier_path)
+    args.atelier_path = os.path.expanduser(atelier_path) if atelier_path else None
 
     args.logo_path = logo_path
     args.bg_music_path = bg_music_path

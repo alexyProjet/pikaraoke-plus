@@ -37,6 +37,7 @@ from pikaraoke.lib.song_manager import SongManager
 from pikaraoke.lib.url_prefix import BasePathMiddleware
 from pikaraoke.lib.youtube_dl import upgrade_youtubedl
 from pikaraoke.routes.admin import admin_bp
+from pikaraoke.routes.atelier import atelier_bp
 from pikaraoke.routes.background_music import background_music_bp
 from pikaraoke.routes.batch_song_renamer import batch_song_renamer_bp
 from pikaraoke.routes.controller import controller_bp
@@ -110,6 +111,7 @@ _internal_blueprints = [
     info_bp,
     splash_bp,
     batch_song_renamer_bp,
+    atelier_bp,
 ]
 
 for bp in _api_blueprints:
@@ -241,6 +243,7 @@ def main() -> None:
         port=args.port,
         download_path=args.download_path,
         post_download_copy_path=args.post_download_copy_path,
+        atelier_path=args.atelier_path,
         youtubedl_proxy=args.youtubedl_proxy,
         splash_delay=args.splash_delay,
         log_level=args.log_level,
@@ -297,8 +300,11 @@ def main() -> None:
     app.config["SITE_NAME"] = "PiKaraoke"
 
     # Expose some functions to jinja templates
+    from pikaraoke.lib.current_app import is_admin
+
     app.jinja_env.globals.update(filename_from_path=k.song_manager.display_name_from_path)
     app.jinja_env.globals.update(url_escape=quote)
+    app.jinja_env.globals.update(is_admin=is_admin)
 
     if not args.skip_youtubedl_upgrade:
         spawn(upgrade_youtubedl)
