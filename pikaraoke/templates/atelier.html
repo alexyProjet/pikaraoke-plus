@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block header %}
+<h1 class="title">
+  {# MSG: Title of the workshop page (song preparation and conversions). #}
+  {% trans %}Workshop{% endtrans %}
+</h1>
+{% endblock %}
+
+{% block content %}
+
+{% if not atelier_enabled %}
+<div class="notification is-warning">
+  {# MSG: Shown when the server was started without a workshop folder. #}
+  {% trans %}The workshop folder is not configured (--atelier-path). Downloads still work, conversions are disabled.{% endtrans %}
+</div>
+{% endif %}
+
+<div class="box">
+  <h2 class="subtitle">
+    {# MSG: Section title: batch-download songs before a party. #}
+    {% trans %}Prepare the party{% endtrans %}
+  </h2>
+  <p class="help" style="margin-bottom: 8px;">
+    {# MSG: Help text above the textarea where the host pastes YouTube links. #}
+    {% trans %}Paste YouTube links (one per line). They are downloaded to the library without being added to the queue.{% endtrans %}
+  </p>
+  <textarea id="liens" class="textarea" rows="5" placeholder="https://www.youtube.com/watch?v=..."></textarea>
+  <label class="checkbox" style="margin-top: 8px;">
+    <input type="checkbox" id="convertir" {% if not atelier_enabled %}disabled{% endif %}>
+    {# MSG: Checkbox label: also send the downloaded songs to the PC for vocal removal. #}
+    {% trans %}Also convert to instrumental on the PC (removes vocals){% endtrans %}
+  </label>
+  <div style="margin-top: 12px;">
+    <button id="bouton-liens" class="button is-primary" onclick="envoyerLiens()">
+      {# MSG: Button that starts downloading the pasted links. #}
+      {% trans %}Download to library{% endtrans %}
+    </button>
+  </div>
+</div>
+
+{% if atelier_enabled %}
+<div class="box">
+  <h2 class="subtitle">
+    {# MSG: Section title: send a song that is already in the library to the PC. #}
+    {% trans %}Send an existing song to the workshop{% endtrans %}
+  </h2>
+  <div class="field">
+    <input id="recherche" class="input" type="text"
+      {# MSG: Placeholder of the library search box on the workshop page. #}
+      placeholder="{{ _('Search your library') | forceescape }}" oninput="chercherDebounce()">
+  </div>
+  <div id="resultats"></div>
+</div>
+
+<div class="box">
+  <h2 class="subtitle">
+    {# MSG: Section title: list of conversion jobs and their progress. #}
+    {% trans %}Workshop jobs{% endtrans %}
+  </h2>
+  <div id="travaux">
+    {# MSG: Shown when there is no conversion job yet. #}
+    <p class="has-text-grey">{% trans %}No jobs yet.{% endtrans %}</p>
+  </div>
+</div>
+{% endif %}
+
+<script>
+  const ATELIER_ACTIF = {{ atelier_enabled | tojson }};
+  const LIBELLES_ETAT = {
+    /* MSG: Job state: the PC has not picked up the job yet. */
+    "waiting": {{ _("Waiting for the PC") | tojson }},
+    /* MSG: Job state: the PC is separating vocals right now. */
+    "converting": {{ _("Converting") | tojson }},
+    /* MSG: Job state: the converted file is in the library. */
+    "done": {{ _("Done - available in the library") | tojson }},
+    /* MSG: Job state: the conversion failed. */
+    "error": {{ _("Error") | tojson }}
+  };
+  /* MSG: Notification after submitting links: number of downloads started. */
+  const MSG_LIENS_AJOUTES = {{ _("Downloads started: ") | tojson }};
+  /* MSG: Notification when some pasted links were not valid YouTube links. */
+  const MSG_LIENS_INVALIDES = {{ _("Ignored invalid links: ") | tojson }};
+  /* MSG: Notification after sending a song to the workshop. */
+  const MSG_ENVOYEE = {{ _("Song sent to the workshop") | tojson }};
+  /* MSG: Shown when there is no conversion job yet. */
+  const MSG_AUCUN_TRAVAIL = {{ _("No jobs yet.") | tojson }};
+  /* MSG: Button that sends one library song to the workshop. */
+  const MSG_ENVOYER = {{ _("Send") | tojson }};
+
+  async function envoyerLiens() {
+    const bouton = document.getElementById("bouton-liens");
+    const zone = document.getElementById("liens");
+    const liens = zone.value.split("\n").map(l => l.trim()).filter(l => l);
+    if (!liens.length) return;
+    bouton.classList.add("is-loading");
+    try {
+      const reponse = await fetch("{{ url_for('atelier.add_links') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ links: liens, convert: document.getElementById("convertir").checked })
+      });
+      const donnees = await reponse.json();
+      if (reponse.ok) {
+        let message = MSG_LIENS_AJOUTES + donnees.added;
+        if (donnees.invalid.length) message += " — " + MSG_LIENS_INVALIDES + donnees.invalid.length;
+        showNotification(message, donnees.invalid.length ? "is-warning" : "is-success");
+        zone.value = donnees.invalid.join("\n");
+      } else {
+        showNotification(donnees.error || "Error", "is-danger");
+      }
+    } finally {
+      bouton.classList.remove("is-loading");
+    }
+  }
+
+  let minuteurRecherche = null;
+  function chercherDebounce() {
+    clearTimeout(minuteurRecherche);
+    minuteurRecherche = setTimeout(chercher, 300);
+  }
+
+  async function chercher() {
+    const q = document.getElementById("recherche").value.trim();
+    const conteneur = document.getElementById("resultats");
+    if (!q) { conteneur.innerHTML = ""; return; }
+    const reponse = await fetch("{{ url_for('atelier.search_songs') }}?q=" + encodeURIComponent(q));
+    if (!reponse.ok) return;
+    const donnees = await reponse.json();
+    conteneur.innerHTML = donnees.songs.map(chanson =>
+      '<div class="level is-mobile" style="margin-bottom: 6px;">' +
+      '<div class="level-left" style="flex-shrink: 1; min-width: 0;"><span style="overflow-wrap: anywhere;">' +
+      escapeHtml(chanson.name) + '</span></div>' +
+      '<div class="level-right"><button class="button is-small is-link" data-path="' +
+      escapeHtml(chanson.path) + '" onclick="envoyerChanson(this)">' + escapeHtml(MSG_ENVOYER) +
+      '</button></div></div>'
+    ).join("");
+  }
+
+  async function envoyerChanson(bouton) {
+    bouton.classList.add("is-loading");
+    try {
+      const reponse = await fetch("{{ url_for('atelier.send_song') }}", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ song_path: bouton.dataset.path })
+      });
+      const donnees = await reponse.json();
+      if (reponse.ok) {
+        showNotification(MSG_ENVOYEE, "is-success");
+        majTravaux();
+      } else {
+        showNotification(donnees.error || "Error", "is-danger");
+      }
+    } finally {
+      bouton.classList.remove("is-loading");
+    }
+  }
+
+  function renduTravail(travail) {
+    const libelle = LIBELLES_ETAT[travail.state] || travail.state;
+    let barre = "";
+    if (travail.state === "converting") {
+      barre = '<progress class="progress is-link is-small" value="' + (travail.percent || 0) +
+        '" max="100">' + (travail.percent || 0) + '%</progress>';
+    } else if (travail.state === "waiting") {
+      barre = '<progress class="progress is-small" max="100"></progress>';
+    }
+    const classe = travail.state === "done" ? "has-text-success"
+      : travail.state === "error" ? "has-text-danger" : "has-text-grey";
+    const detail = travail.state === "error" && travail.message
+      ? '<p class="help has-text-danger">' + escapeHtml(travail.message) + '</p>' : "";
+    return '<div style="margin-bottom: 14px;">' +
+      '<p style="overflow-wrap: anywhere;"><strong>' + escapeHtml(travail.title) + '</strong> — ' +
+      '<span class="' + classe + '">' + escapeHtml(libelle) +
+      (travail.state === "converting" ? " " + (travail.percent || 0) + "%" : "") +
+      '</span></p>' + barre + detail + '</div>';
+  }
+
+  async function majTravaux() {
+    if (!ATELIER_ACTIF) return;
+    const conteneur = document.getElementById("travaux");
+    try {
+      const reponse = await fetch("{{ url_for('atelier.jobs') }}");
+      if (reponse.ok) {
+        const donnees = await reponse.json();
+        conteneur.innerHTML = donnees.jobs.length
+          ? donnees.jobs.map(renduTravail).join("")
+          : '<p class="has-text-grey">' + escapeHtml(MSG_AUCUN_TRAVAIL) + '</p>';
+      }
+    } catch (e) { /* transient network error: keep last render, retry on next tick */ }
+    setTimeout(majTravaux, 3000);
+  }
+
+  majTravaux();
+</script>
+
+{% endblock %}

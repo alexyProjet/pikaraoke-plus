@@ -270,6 +270,7 @@
             basePath + '/clear_preferences',
             basePath + '/auth',
             basePath + '/batch-song-renamer', // Edit all songs page
+            basePath + '/atelier', // Workshop page runs its own polling loop
             basePath + '/files/edit', // Edit single song
             basePath + '/files/delete', // Delete song
             basePath + '/queue/edit' // Queue edit actions (move up/down/top/bottom/delete)

@@ -15,6 +15,7 @@ import qrcode
 from flask_babel import _
 from qrcode.image.pure import PyPNGImage
 
+from pikaraoke.lib.atelier_manager import AtelierManager
 from pikaraoke.lib.download_manager import DownloadManager
 from pikaraoke.lib.events import EventSystem
 from pikaraoke.lib.ffmpeg import (
@@ -102,6 +103,7 @@ class Karaoke:
         log_level: int = logging.DEBUG,
         logo_path: str | None = None,
         port: int = 5555,
+        atelier_path: str | None = None,
         post_download_copy_path: str | None = None,
         prefer_hostname: bool | None = None,
         preferred_language: str | None = None,
@@ -198,6 +200,7 @@ class Karaoke:
         self.enable_mic_passthrough = enable_mic_passthrough
         self.download_path = download_path
         self.post_download_copy_path = post_download_copy_path
+        self.atelier_path = atelier_path
         self.log_level = log_level
         self.youtubedl_proxy = youtubedl_proxy
         self.additional_ytdl_args = additional_ytdl_args
@@ -255,6 +258,12 @@ class Karaoke:
         self.events.on("song_downloaded", self.song_manager.register_download)
         if self.post_download_copy_path:
             self.events.on("song_downloaded", self.copy_downloaded_song)
+        self.atelier_manager: AtelierManager | None = None
+        if self.atelier_path:
+            self.atelier_manager = AtelierManager(
+                self.atelier_path, events=self.events, sync_library=self.sync_library
+            )
+            self.events.on("song_downloaded", self.atelier_manager.on_song_downloaded)
         self.events.on(
             "sync_started",
             lambda: self.socketio.emit("sync_started", namespace="/") if self.socketio else None,
