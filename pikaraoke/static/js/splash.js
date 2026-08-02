@@ -218,14 +218,15 @@ const updateBackgroundMediaState = (immediate = false) => {
 
 const flashNotification = (message, categoryClass) => {
   const sn = $("#splash-notification");
-  if (sn.html()) return;
-  sn.html(message);
+  if (sn.text()) return;
+  // Notifications embed user-provided names and titles; render as text
+  sn.text(message);
   sn.addClass(categoryClass);
   sn.fadeIn();
   setTimeout(() => {
     sn.fadeOut();
     setTimeout(() => {
-      sn.html("");
+      sn.text("");
       sn.removeClass(categoryClass);
     }, 450);
   }, 3000);
@@ -263,19 +264,19 @@ const handleNowPlayingUpdate = (np) => {
   if (np.now_playing) {
 
     // Handle updating now playing HTML
-    let nowPlayingHtml = `<span>${np.now_playing}</span> `;
+    let nowPlayingHtml = `<span>${escapeHtml(np.now_playing)}</span> `;
     if (np.now_playing_transpose !== 0) {
       nowPlayingHtml += `<span class='is-size-6 has-text-success'><b>Key</b>: ${getSemitonesLabel(np.now_playing_transpose)} </span>`;
     }
     $("#now-playing-song").html(nowPlayingHtml);
-    $("#now-playing-singer").html(np.now_playing_user);
+    $("#now-playing-singer").text(np.now_playing_user);
     $("#now-playing").fadeIn();
   } else {
     $("#now-playing").fadeOut();
   }
   if (np.up_next) {
-    $("#up-next-song").html(np.up_next);
-    $("#up-next-singer").html(np.next_user);
+    $("#up-next-song").text(np.up_next);
+    $("#up-next-singer").text(np.next_user);
     $("#up-next").fadeIn();
   } else {
     $("#up-next").fadeOut();

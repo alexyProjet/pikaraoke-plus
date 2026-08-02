@@ -153,10 +153,10 @@
 
     html += '<td style="padding: 8px 10px; vertical-align: middle;">';
     html += '<div class="is-flex is-flex-wrap-wrap is-align-items-baseline">';
-    html += '<span class="has-text-success">' + np.now_playing_user + '</span>';
+    html += '<span class="has-text-success">' + escapeHtml(np.now_playing_user) + '</span>';
     html += '<span class="is-hidden-mobile has-text-grey mx-2">&bull;</span>';
-    html += '<span class="has-text-weight-bold has-text-success is-hidden-mobile">' + np.now_playing + '</span>';
-    html += '<span class="is-size-7 has-text-weight-bold has-text-success is-hidden-tablet" style="width: 100%;">' + np.now_playing + '</span>';
+    html += '<span class="has-text-weight-bold has-text-success is-hidden-mobile">' + escapeHtml(np.now_playing) + '</span>';
+    html += '<span class="is-size-7 has-text-weight-bold has-text-success is-hidden-tablet" style="width: 100%;">' + escapeHtml(np.now_playing) + '</span>';
     html += '</div></td>';
 
     if (isAdmin) {
@@ -194,7 +194,7 @@
 
               html += `
                   <div class="box mb-4 has-background-dark">
-                      <h4 class="title is-5 mb-2">${d.title}</h4>
+                      <h4 class="title is-5 mb-2">${escapeHtml(d.title)}</h4>
                       <!-- inline style to ensure background visibility if theme overrides it -->
                       <progress class="progress ${progressClass}" value="${d.progress}" max="100" style="background-color: #dbdbdb;">${d.progress}%</progress>
                       <div class="level is-mobile is-size-7 mt-1">
@@ -214,7 +214,7 @@
               status.pending.forEach(function(d) {
                   html += `
                       <div class="box mb-2 p-3 has-background-dark is-flex is-align-items-center">
-                          <span class="has-text-grey">${d.display_title || d.video_url}</span>
+                          <span class="has-text-grey">${escapeHtml(d.display_title || d.video_url)}</span>
                           <span class="tag is-light is-rounded ml-auto">{{ _('Queued') | forceescape }}</span>
                       </div>
                   `;
@@ -229,8 +229,8 @@
                       <div class="box mb-2 p-3 has-background-white-ter is-flex is-align-items-center" style="border-left: 4px solid #f14668;">
                           <span class="icon has-text-danger mr-2"><i class="icon-cancel"></i></span>
                           <div class="is-flex-grow-1" style="min-width: 0;">
-                              <p class="has-text-grey mb-0 is-truncated" title="${d.title || d.url}">${d.title || d.url}</p>
-                              <p class="help is-danger mb-0 is-truncated" title="${d.error}">${d.error}</p>
+                              <p class="has-text-grey mb-0 is-truncated" title="${escapeHtml(d.title || d.url)}">${escapeHtml(d.title || d.url)}</p>
+                              <p class="help is-danger mb-0 is-truncated" title="${escapeHtml(d.error)}">${escapeHtml(d.error)}</p>
                           </div>
                           <span class="tag is-danger is-light is-rounded ml-2">{{ _('Failed') | forceescape }}</span>
                           <button class="delete ml-2" onclick="dismissDownloadError('${d.id}')" title="{{ _('Dismiss') | forceescape }}"></button>
@@ -302,10 +302,10 @@
 
     html += '<td style="padding: 8px 10px; vertical-align: middle;">';
     html += '<div class="is-flex is-flex-wrap-wrap is-align-items-baseline">';
-    html += '<span class="has-text-success">' + e.user + '</span>';
+    html += '<span class="has-text-success">' + escapeHtml(e.user) + '</span>';
     html += '<span class="is-hidden-mobile has-text-grey mx-2">&bull;</span>';
-    html += '<span class="has-text-weight-bold is-hidden-mobile">' + e.title + '</span>';
-    html += '<span class="is-size-7 has-text-weight-bold is-hidden-tablet" style="width: 100%;">' + e.title + '</span>';
+    html += '<span class="has-text-weight-bold is-hidden-mobile">' + escapeHtml(e.title) + '</span>';
+    html += '<span class="is-size-7 has-text-weight-bold is-hidden-tablet" style="width: 100%;">' + escapeHtml(e.title) + '</span>';
     html += '</div></td>';
 
     if (isAdmin) {

@@ -69,6 +69,14 @@
       return JSON.stringify(obj1) === JSON.stringify(obj2);
     }
 
+    // Escape user-provided strings (names, song titles) before injecting
+    // them into HTML built as strings
+    function escapeHtml(str) {
+      return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+
     function debounce(func, wait) {
       let timeout;
       return function(...args) {
