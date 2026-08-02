@@ -27,7 +27,10 @@ echo "== Install pikaraoke from $REPO_DIR =="
 uv tool install --force --reinstall "$REPO_DIR"
 
 echo "== Data folders =="
-mkdir -p "$SONGS_DIR" "$BRIDGE_DIR" "$DATA_DIR"
+# /mnt/media is root-owned: create as root, hand over to the service user.
+sudo mkdir -p "$SONGS_DIR" "$BRIDGE_DIR"
+sudo chown "$USER:$USER" "$SONGS_DIR" "$BRIDGE_DIR"
+mkdir -p "$DATA_DIR"
 
 # Admin password lives on the Pi only, never in the repo.
 if [ ! -f "$ENV_FILE" ]; then
