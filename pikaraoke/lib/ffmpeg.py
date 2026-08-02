@@ -31,6 +31,22 @@ def get_media_duration(file_path: str) -> int | None:
         return None
 
 
+def get_source_audio_codec(file_path: str) -> str | None:
+    """Get the codec name of the file's first audio stream.
+
+    Returns:
+        Codec name (e.g. 'aac', 'ac3'), or None if probing fails.
+    """
+    try:
+        streams = ffmpeg.probe(file_path)["streams"]
+    except (ffmpeg.Error, KeyError, OSError):
+        return None
+    for stream in streams:
+        if stream.get("codec_type") == "audio":
+            return stream.get("codec_name")
+    return None
+
+
 def build_ffmpeg_cmd(
     fr: FileResolver,
     semitones: int = 0,
@@ -138,10 +154,10 @@ def build_ffmpeg_cmd(
         )
     else:
         # HLS format with fMP4 segments
-        # Copy the audio stream when no processing is needed, but only trust
-        # .mp4 sources (AAC audio) - mkv/webm/avi may carry codecs browsers
-        # cannot play inside fMP4 segments
-        if acodec == "copy" and fr.file_extension == ".mp4":
+        # Copy the audio stream when no processing is needed and the source is
+        # actually AAC - containers can carry codecs (AC-3, DTS, MP3) that
+        # browsers cannot play inside fMP4 segments
+        if acodec == "copy" and get_source_audio_codec(fr.file_path) == "aac":
             audio_args: dict[str, Any] = {"acodec": "copy"}
         else:
             audio_args = {

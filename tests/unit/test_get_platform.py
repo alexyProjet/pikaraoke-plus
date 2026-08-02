@@ -62,6 +62,24 @@ class TestGetRaspberryPiModel:
         with patch("builtins.open", mock_file):
             assert get_raspberry_pi_model() == 4
 
+    def test_pi_400_maps_to_generation_4(self):
+        """Test that the Pi 400 keyboard model reports its Pi 4 generation."""
+        mock_file = mock_open(read_data="Raspberry Pi 400 Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 4
+
+    def test_pi_500_maps_to_generation_5(self):
+        """Test that the Pi 500 keyboard model reports its Pi 5 generation."""
+        mock_file = mock_open(read_data="Raspberry Pi 500 Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 5
+
+    def test_compute_module_5(self):
+        """Test that Compute Module models are recognized."""
+        mock_file = mock_open(read_data="Raspberry Pi Compute Module 5 Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 5
+
     def test_unrecognized_model(self):
         """Test a device-tree model without a number."""
         mock_file = mock_open(read_data="Generic ARM Board")

@@ -184,11 +184,18 @@ const AudioFx = {
     compressor.threshold.value = -24;
     compressor.knee.value = 30;
     compressor.ratio.value = 4;
+    // Always-on output limiter so boosted or EQ'd audio never clips
+    const limiter = this.ctx.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
     source.connect(low);
     low.connect(mid);
     mid.connect(high);
     high.connect(gain);
-    this.nodes = { low, mid, high, gain, compressor };
+    this.nodes = { low, mid, high, gain, compressor, limiter };
   },
 
   apply() {
@@ -201,18 +208,20 @@ const AudioFx = {
     n.gain.gain.value = Math.pow(10, s.gain / 20);
     n.gain.disconnect();
     n.compressor.disconnect();
+    n.limiter.disconnect();
     if (s.auto_level) {
       n.gain.connect(n.compressor);
-      n.compressor.connect(this.ctx.destination);
+      n.compressor.connect(n.limiter);
     } else {
-      n.gain.connect(this.ctx.destination);
+      n.gain.connect(n.limiter);
     }
+    n.limiter.connect(this.ctx.destination);
   },
 
   // Autoplay policies can leave the context suspended until a gesture or
   // playback event; retry on both so audio never stays silent
   resume() {
-    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume();
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
   },
 };
 

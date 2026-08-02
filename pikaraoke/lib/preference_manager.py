@@ -158,6 +158,10 @@ class PreferenceManager:
             return (True, _("Your preferences were changed successfully"))
         except (OSError, configparser.Error) as e:
             logging.debug(f"Failed to change user preference << {preference} >>: {e}")
+            # The in-memory config was mutated before the failed write;
+            # invalidate the cache so the next get() re-reads the file and
+            # disk values win over the unpersisted one
+            self._config_mtime_ns = None
             return (False, _("Something went wrong! Your preferences were not changed"))
 
     def _track_written_config(self) -> None:

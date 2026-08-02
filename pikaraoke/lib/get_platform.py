@@ -118,18 +118,22 @@ def get_platform() -> str:
 
 
 def get_raspberry_pi_model() -> int | None:
-    """Get the Raspberry Pi model number (e.g. 4 for a Pi 4 Model B).
+    """Get the Raspberry Pi generation (e.g. 4 for a Pi 4, Pi 400 or CM4).
 
     Returns:
-        Model number, or None if not a Raspberry Pi or the model is unrecognized.
+        Generation number, or None if not a Raspberry Pi or unrecognized.
     """
     try:
         with open("/proc/device-tree/model", "r") as file:
             model = file.read()
     except OSError:
         return None
-    match = re.search(r"Raspberry Pi (\d+)", model)
-    return int(match.group(1)) if match else None
+    match = re.search(r"Raspberry Pi (?:Compute Module )?(\d+)", model)
+    if not match:
+        return None
+    number = int(match.group(1))
+    # Keyboard models (400, 500) share the SoC of their generation
+    return number // 100 if number >= 100 else number
 
 
 def get_default_dl_dir(platform: str) -> str:

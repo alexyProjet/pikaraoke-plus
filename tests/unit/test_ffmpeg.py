@@ -26,30 +26,47 @@ def make_file_resolver(extension: str = ".mp4") -> MagicMock:
     return fr
 
 
+def _mock_probe_with_audio(codec_name):
+    """Build an ffmpeg.probe result with a single audio stream."""
+    return {"streams": [{"codec_type": "audio", "codec_name": codec_name}]}
+
+
 class TestBuildFfmpegCmdHlsAudio:
     """Tests for audio codec selection in the HLS output branch."""
 
-    def test_clean_mp4_copies_audio(self):
-        """Test that an untouched mp4 source copies the audio stream."""
-        cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=False)
+    def test_clean_aac_source_copies_audio(self):
+        """Test that an untouched AAC source copies the audio stream."""
+        with patch("pikaraoke.lib.ffmpeg.ffmpeg.probe") as mock_probe:
+            mock_probe.return_value = _mock_probe_with_audio("aac")
+            cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=False)
         args = cmd.get_args()
-        assert "copy" in args[args.index("-acodec") + 1]
+        assert args[args.index("-acodec") + 1] == "copy"
 
-    def test_transposed_mp4_reencodes_audio(self):
+    def test_non_aac_source_reencodes_audio(self):
+        """Test that mp4 containers with non-AAC audio (AC-3, MP3) re-encode."""
+        with patch("pikaraoke.lib.ffmpeg.ffmpeg.probe") as mock_probe:
+            mock_probe.return_value = _mock_probe_with_audio("ac3")
+            cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=False)
+        args = cmd.get_args()
+        assert args[args.index("-acodec") + 1] == "aac"
+
+    def test_unprobeable_source_reencodes_audio(self):
+        """Test that a failed probe falls back to safe re-encoding."""
+        with patch("pikaraoke.lib.ffmpeg.ffmpeg.probe") as mock_probe:
+            mock_probe.side_effect = OSError("probe failed")
+            cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=False)
+        args = cmd.get_args()
+        assert args[args.index("-acodec") + 1] == "aac"
+
+    def test_transposed_source_reencodes_audio(self):
         """Test that pitch shifting forces AAC re-encoding."""
         cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=2, normalize_audio=False)
         args = cmd.get_args()
         assert args[args.index("-acodec") + 1] == "aac"
 
-    def test_normalized_mp4_reencodes_audio(self):
+    def test_normalized_source_reencodes_audio(self):
         """Test that loudness normalization forces AAC re-encoding."""
         cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=True)
-        args = cmd.get_args()
-        assert args[args.index("-acodec") + 1] == "aac"
-
-    def test_mkv_reencodes_audio(self):
-        """Test that non-mp4 containers re-encode audio even without processing."""
-        cmd = build_ffmpeg_cmd(make_file_resolver(".mkv"), semitones=0, normalize_audio=False)
         args = cmd.get_args()
         assert args[args.index("-acodec") + 1] == "aac"
 
