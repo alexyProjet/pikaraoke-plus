@@ -17,8 +17,8 @@
 	function handleNowPlaying(np) {
 		console.log(np);
 		if (np.now_playing) {
-			var nowPlayingHtml = `<p style="margin-bottom: 5px">${np.now_playing}</p>
-          <p class="has-text-success" style="margin-bottom: 5px"><i class="icon icon-mic-1" title="Current singer"></i>${np.now_playing_user}</p>`;
+			var nowPlayingHtml = `<p style="margin-bottom: 5px">${escapeHtml(np.now_playing)}</p>
+          <p class="has-text-success" style="margin-bottom: 5px"><i class="icon icon-mic-1" title="Current singer"></i>${escapeHtml(np.now_playing_user)}</p>`;
 
 			if (np.now_playing_transpose != 0) {
 				nowPlayingHtml +=
@@ -37,10 +37,10 @@
 		}
 
 		if (np.up_next) {
-			$("#up-next").html(`<p style="margin-bottom: 5px">${np.up_next}</p>
+			$("#up-next").html(`<p style="margin-bottom: 5px">${escapeHtml(np.up_next)}</p>
           <p class="has-text-success">
             {# MSG: Title text for the icon marking the next person to sing. #}
-            <i class="icon icon-mic-1" title="{{ _('Next singer') | forceescape }}"></i>${np.next_user}</p>`);
+            <i class="icon icon-mic-1" title="{{ _('Next singer') | forceescape }}"></i>${escapeHtml(np.next_user)}</p>`);
 		} else {
 			// {# MSG: Alternative text for the "Up next" section if no more songs are queued up. #}
 			$("#up-next").html({{ _('No song is queued.') | tojson }});
@@ -92,6 +92,58 @@
 				$.get(window.pikaraokeConfig.basePath + "/volume/" + value);
 			}, 500)
 		);
+
+		// Audio effects panel (EQ, boost, auto-level) - persisted as one
+		// JSON preference and applied live on the splash screen
+		if ($("#audio-fx-panel").length) {
+			var audioFxDefaults = { eq_low: 0, eq_mid: 0, eq_high: 0, gain: 0, auto_level: false };
+			var audioFx = Object.assign({}, audioFxDefaults);
+			try {
+				Object.assign(audioFx, JSON.parse({{ audio_fx | tojson }} || "{}"));
+			} catch (e) {
+				console.error("Ignoring invalid audio_fx settings");
+			}
+
+			var formatDb = function (v) {
+				return (v > 0 ? "+" + v : v) + " dB";
+			};
+
+			var renderAudioFx = function () {
+				$(".audio-fx-slider").each(function () {
+					var key = $(this).data("key");
+					$(this).val(audioFx[key]);
+					$("#audio-fx-val-" + key).text(formatDb(audioFx[key]));
+				});
+				$("#audio-fx-auto").prop("checked", !!audioFx.auto_level);
+			};
+
+			var pushAudioFx = debounce(function () {
+				$.get(window.pikaraokeConfig.basePath + "/change_preferences", {
+					pref: "audio_fx",
+					val: JSON.stringify(audioFx),
+				});
+			}, 300);
+
+			renderAudioFx();
+
+			$(".audio-fx-slider").on("input", function () {
+				var key = $(this).data("key");
+				audioFx[key] = parseInt($(this).val(), 10) || 0;
+				$("#audio-fx-val-" + key).text(formatDb(audioFx[key]));
+				pushAudioFx();
+			});
+
+			$("#audio-fx-auto").on("change", function () {
+				audioFx.auto_level = $(this).is(":checked");
+				pushAudioFx();
+			});
+
+			$("#audio-fx-reset").click(function () {
+				audioFx = Object.assign({}, audioFxDefaults);
+				renderAudioFx();
+				pushAudioFx();
+			});
+		}
 
 		$("#submit-transpose").click(function () {
 			var value;
@@ -308,6 +360,45 @@
 		</div>
 	</div>
 	{% endif %}
+
+	<hr />
+	<div id="audio-fx-panel">
+		<div class="is-flex" style="justify-content: space-between; align-items: center">
+			{# MSG: Title of the audio effects control panel (equalizer, boost, auto-level). #}
+			<h4>{% trans %}Audio Effects{% endtrans %}</h4>
+			{# MSG: Label on the button which resets all audio effects to neutral. #}
+			<button id="audio-fx-reset" class="button is-rounded is-small">{% trans %}Reset{% endtrans %}</button>
+		</div>
+		{# MSG: Label for the equalizer bass band slider. #}
+		{% set audio_fx_sliders = [
+			("eq_low", _("Bass"), -12, 12),
+			("eq_mid", _("Mid"), -12, 12),
+			("eq_high", _("Treble"), -12, 12),
+			("gain", _("Boost"), 0, 12),
+		] %}
+		{% for key, label, min, max in audio_fx_sliders %}
+		<div class="is-flex" style="align-items: center; margin-top: 6px">
+			<span style="width: 70px">{{ label }}</span>
+			<input
+				type="range"
+				min="{{ min }}"
+				max="{{ max }}"
+				value="0"
+				step="1"
+				class="audio-fx-slider"
+				data-key="{{ key }}"
+				id="audio-fx-{{ key }}"
+				style="flex: 1; margin: 0 10px"
+			/>
+			<span id="audio-fx-val-{{ key }}" style="width: 55px; text-align: right">0 dB</span>
+		</div>
+		{% endfor %}
+		<label class="checkbox" style="margin-top: 10px">
+			<input type="checkbox" id="audio-fx-auto" />
+			{# MSG: Label for the checkbox enabling automatic level compression. #}
+			{% trans %}Auto level (compressor){% endtrans %}
+		</label>
+	</div>
 
 	{% if mic_available %}
 	<div id="mic-live-panel" style="display: none">

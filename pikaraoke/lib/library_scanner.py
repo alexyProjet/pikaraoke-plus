@@ -5,6 +5,8 @@ import os
 from collections import defaultdict
 from dataclasses import dataclass
 
+import gevent
+
 from pikaraoke.lib.karaoke_database import KaraokeDatabase
 from pikaraoke.lib.metadata_parser import youtube_id_suffix
 from pikaraoke.lib.song_list import SongList
@@ -183,6 +185,10 @@ class LibraryScanner:
         """Walk the directory tree and collect paths of valid song files."""
         found: set[str] = set()
         for dirpath, _dirnames, filenames in os.walk(songs_dir):
+            # The background scan runs as a greenlet; os.walk never yields on
+            # its own, so large libraries would freeze the web server and
+            # playback for the whole walk without this
+            gevent.sleep(0)
             for filename in filenames:
                 if os.path.splitext(filename)[1].lower() in _VALID_EXTENSIONS:
                     found.add(os.path.join(dirpath, filename))

@@ -1,5 +1,5 @@
 {% extends 'base.html' %} {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='sortable-1.15.6.min.js') }}"></script>
 
 <script>
   // Pass admin status from server to JavaScript
@@ -153,10 +153,10 @@
 
     html += '<td style="padding: 8px 10px; vertical-align: middle;">';
     html += '<div class="is-flex is-flex-wrap-wrap is-align-items-baseline">';
-    html += '<span class="has-text-success">' + np.now_playing_user + '</span>';
+    html += '<span class="has-text-success">' + escapeHtml(np.now_playing_user) + '</span>';
     html += '<span class="is-hidden-mobile has-text-grey mx-2">&bull;</span>';
-    html += '<span class="has-text-weight-bold has-text-success is-hidden-mobile">' + np.now_playing + '</span>';
-    html += '<span class="is-size-7 has-text-weight-bold has-text-success is-hidden-tablet" style="width: 100%;">' + np.now_playing + '</span>';
+    html += '<span class="has-text-weight-bold has-text-success is-hidden-mobile">' + escapeHtml(np.now_playing) + '</span>';
+    html += '<span class="is-size-7 has-text-weight-bold has-text-success is-hidden-tablet" style="width: 100%;">' + escapeHtml(np.now_playing) + '</span>';
     html += '</div></td>';
 
     if (isAdmin) {
@@ -164,6 +164,8 @@
       html += '<a class="has-text-grey-light is-small is-text now-playing-options-btn" title="{{ _("Options") | forceescape }}">';
       html += '<i class="icon-cog is-size-5"></i></a>';
       html += '</td>';
+    } else {
+      html += '<td style="width: ' + COL_WIDTH.options + ';"></td>';
     }
     html += '</tr>';
     return html;
@@ -194,7 +196,7 @@
 
               html += `
                   <div class="box mb-4 has-background-dark">
-                      <h4 class="title is-5 mb-2">${d.title}</h4>
+                      <h4 class="title is-5 mb-2">${escapeHtml(d.title)}</h4>
                       <!-- inline style to ensure background visibility if theme overrides it -->
                       <progress class="progress ${progressClass}" value="${d.progress}" max="100" style="background-color: #dbdbdb;">${d.progress}%</progress>
                       <div class="level is-mobile is-size-7 mt-1">
@@ -214,7 +216,7 @@
               status.pending.forEach(function(d) {
                   html += `
                       <div class="box mb-2 p-3 has-background-dark is-flex is-align-items-center">
-                          <span class="has-text-grey">${d.display_title || d.video_url}</span>
+                          <span class="has-text-grey">${escapeHtml(d.display_title || d.video_url)}</span>
                           <span class="tag is-light is-rounded ml-auto">{{ _('Queued') | forceescape }}</span>
                       </div>
                   `;
@@ -229,8 +231,8 @@
                       <div class="box mb-2 p-3 has-background-white-ter is-flex is-align-items-center" style="border-left: 4px solid #f14668;">
                           <span class="icon has-text-danger mr-2"><i class="icon-cancel"></i></span>
                           <div class="is-flex-grow-1" style="min-width: 0;">
-                              <p class="has-text-grey mb-0 is-truncated" title="${d.title || d.url}">${d.title || d.url}</p>
-                              <p class="help is-danger mb-0 is-truncated" title="${d.error}">${d.error}</p>
+                              <p class="has-text-grey mb-0 is-truncated" title="${escapeHtml(d.title || d.url)}">${escapeHtml(d.title || d.url)}</p>
+                              <p class="help is-danger mb-0 is-truncated" title="${escapeHtml(d.error)}">${escapeHtml(d.error)}</p>
                           </div>
                           <span class="tag is-danger is-light is-rounded ml-2">{{ _('Failed') | forceescape }}</span>
                           <button class="delete ml-2" onclick="dismissDownloadError('${d.id}')" title="{{ _('Dismiss') | forceescape }}"></button>
@@ -302,16 +304,24 @@
 
     html += '<td style="padding: 8px 10px; vertical-align: middle;">';
     html += '<div class="is-flex is-flex-wrap-wrap is-align-items-baseline">';
-    html += '<span class="has-text-success">' + e.user + '</span>';
+    html += '<span class="has-text-success">' + escapeHtml(e.user) + '</span>';
     html += '<span class="is-hidden-mobile has-text-grey mx-2">&bull;</span>';
-    html += '<span class="has-text-weight-bold is-hidden-mobile">' + e.title + '</span>';
-    html += '<span class="is-size-7 has-text-weight-bold is-hidden-tablet" style="width: 100%;">' + e.title + '</span>';
+    html += '<span class="has-text-weight-bold is-hidden-mobile">' + escapeHtml(e.title) + '</span>';
+    html += '<span class="is-size-7 has-text-weight-bold is-hidden-tablet" style="width: 100%;">' + escapeHtml(e.title) + '</span>';
     html += '</div></td>';
 
     if (isAdmin) {
       html += '<td style="width: ' + COL_WIDTH.options + '; vertical-align: middle; text-align: right; padding-right: 10px;">';
       html += '<a class="has-text-grey-light is-small is-text queue-song-options-btn" data-index="' + index + '" data-file="' + escape(e.file) + '" data-title="' + escape(e.title) + '" title="{{ _("Options") | forceescape }}">';
       html += '<i class="icon-cog is-size-5"></i></a>';
+      html += '</td>';
+    } else {
+      // Guests can remove the songs they queued themselves
+      html += '<td style="width: ' + COL_WIDTH.options + '; vertical-align: middle; text-align: right; padding-right: 10px;">';
+      if (getUserCookie() && e.user === getUserCookie()) {
+        html += '<a class="has-text-danger is-small is-text queue-song-remove-btn" data-file="' + escape(e.file) + '" data-title="' + escape(e.title) + '" title="{{ _("Remove my song") | forceescape }}">';
+        html += '<i class="icon-trash-empty is-size-5"></i></a>';
+      }
       html += '</td>';
     }
 
@@ -323,7 +333,7 @@
     var html = "<tbody>";
     var queue = window.queuePageState.queue;
     var np = window.queuePageState.nowPlaying;
-    var colSpan = isAdmin ? 4 : 2;
+    var colSpan = isAdmin ? 4 : 3;
 
     if (np && np.now_playing) {
       html += generateNowPlayingRow(np);
@@ -456,6 +466,26 @@
       $('.modal-background').click(function() {
           window.closeSongOptions();
           window.closeNowPlayingOptions();
+      });
+
+      // Guest remove-own-song button
+      $(document).off('click.removeOwn').on('click.removeOwn', '.queue-song-remove-btn', function(e) {
+          e.preventDefault();
+          var file = decodeURIComponent($(this).data('file'));
+          var title = decodeURIComponent($(this).data('title'));
+          // {# MSG: Confirmation shown when a guest removes their own song from the queue. #}
+          confirmDialog({{ _('Remove your song from the queue?') | tojson }} + "\n" + title, function() {
+              $.ajax({
+                  url: window.pikaraokeConfig.basePath + "/queue/edit?song=" + encodeURIComponent(file) + "&action=delete",
+                  method: 'GET',
+                  headers: { 'X-Requested-With': 'XMLHttpRequest' }
+              }).done(function(response) {
+                  var result = JSON.parse(response);
+                  if (result.message) {
+                      showNotification(result.message, result.success ? "is-success" : "is-danger");
+                  }
+              });
+          });
       });
 
       // Queue song options button (for queued songs)

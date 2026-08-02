@@ -295,6 +295,9 @@ class DownloadManager:
                     "error": output or "Unknown error",
                 }
             )
+            # Errors are only dismissed manually, so cap the list to avoid
+            # unbounded growth over a long-running session
+            del self.download_errors[:-25]
         else:
             if self.active_download:
                 self.active_download["progress"] = 100

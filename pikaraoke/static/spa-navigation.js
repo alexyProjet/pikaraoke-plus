@@ -122,39 +122,43 @@
         $(document).off('click', '.down-button');
         $(document).off('click', '.add-random');
 
+        // Styled confirmation with native fallback for pages without the modal
+        var confirmAction = function(msg, onConfirm) {
+            if (window.confirmDialog) {
+                window.confirmDialog(msg, onConfirm);
+            } else if (window.confirm(msg)) {
+                onConfirm();
+            }
+        };
+
         // Clear queue confirmation
         $(document).on('click', '.confirm-clear', function(e) {
             e.preventDefault();
-            var promptMsg = (window.translations && window.translations.promptClearQueue)
-                ? window.translations.promptClearQueue
-                : "Are you sure you want to clear the ENTIRE queue? Type 'ok' to continue";
-            let userInput = window.prompt(promptMsg);
-            // Only clear if user typed 'ok' exactly (case insensitive)
-            if (userInput !== null && userInput.toLowerCase() === "ok") {
-                $.get(this.href);
-            }
+            var href = this.href;
+            var msg = (window.translations && window.translations.confirmClearQueue)
+                ? window.translations.confirmClearQueue
+                : "Clear the entire queue? This cannot be undone.";
+            confirmAction(msg, function() { $.get(href); });
         });
 
         // Delete song from queue confirmation
         $(document).on('click', '.confirm-delete', function(e) {
             e.preventDefault();
+            var href = this.href;
             var msg = (window.translations && window.translations.confirmDeleteFromQueue)
                 ? window.translations.confirmDeleteFromQueue.replace('SONG_TITLE', this.title)
                 : `Are you sure you want to delete "${this.title}" from the queue?`;
-            if (window.confirm(msg)) {
-                $.get(this.href);
-            }
+            confirmAction(msg, function() { $.get(href); });
         });
 
         // Delete song file from library confirmation (full page navigation)
         $(document).on('click', '.confirm-delete-file', function(e) {
             e.preventDefault();
+            var href = this.href;
             var msg = (window.translations && window.translations.confirmDeleteFromLibrary)
                 ? window.translations.confirmDeleteFromLibrary
                 : 'Are you sure you want to delete this song from the library?';
-            if (window.confirm(msg)) {
-                window.location.href = this.href;
-            }
+            confirmAction(msg, function() { window.location.href = href; });
         });
 
         // Move song up in queue

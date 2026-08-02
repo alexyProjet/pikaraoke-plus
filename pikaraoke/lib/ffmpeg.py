@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 import ffmpeg
 
-from pikaraoke.lib.get_platform import is_running_in_docker
+from pikaraoke.lib.get_platform import get_raspberry_pi_model, is_running_in_docker
 
 if TYPE_CHECKING:
     from pikaraoke.lib.file_resolver import FileResolver
@@ -29,6 +29,22 @@ def get_media_duration(file_path: str) -> int | None:
         return round(float(duration))
     except:
         return None
+
+
+def get_source_audio_codec(file_path: str) -> str | None:
+    """Get the codec name of the file's first audio stream.
+
+    Returns:
+        Codec name (e.g. 'aac', 'ac3'), or None if probing fails.
+    """
+    try:
+        streams = ffmpeg.probe(file_path)["streams"]
+    except (ffmpeg.Error, KeyError, OSError):
+        return None
+    for stream in streams:
+        if stream.get("codec_type") == "audio":
+            return stream.get("codec_name")
+    return None
 
 
 def build_ffmpeg_cmd(
@@ -138,18 +154,24 @@ def build_ffmpeg_cmd(
         )
     else:
         # HLS format with fMP4 segments
-        # Both MP4 and HLS streaming modes use this - difference is in serving:
-        # - mp4: Stream concatenates init + segments for progressive playback
-        # - hls: Browser requests segments via .m3u8 playlist
+        # Copy the audio stream when no processing is needed and the source is
+        # actually AAC - containers can carry codecs (AC-3, DTS, MP3) that
+        # browsers cannot play inside fMP4 segments
+        if acodec == "copy" and get_source_audio_codec(fr.file_path) == "aac":
+            audio_args: dict[str, Any] = {"acodec": "copy"}
+        else:
+            audio_args = {
+                "acodec": "aac",
+                "audio_bitrate": "192k",
+                "ac": 2,  # Force stereo
+                "ar": 48000,  # Standard sample rate
+            }
         output = ffmpeg.output(
             audio,
             video,
             fr.output_file,
             vcodec=vcodec,
-            acodec="aac",
-            audio_bitrate="192k",
-            ac=2,  # Force stereo
-            ar=48000,  # Standard sample rate
+            **audio_args,
             preset="ultrafast",
             f="hls",
             hls_time=3,
@@ -230,6 +252,15 @@ def supports_hardware_h264_encoding() -> bool:
     if is_running_in_docker():
         # Docker containers do not have access to the GPU
         logging.debug("Running in Docker where GPU access is not available, using software encoder")
+        return False
+
+    # The Pi 5 dropped the hardware H.264 encoder block; ffmpeg builds still
+    # list h264_v4l2m2m, so the codec check below would wrongly pass
+    pi_model = get_raspberry_pi_model()
+    if pi_model is not None and pi_model >= 5:
+        logging.info(
+            f"Raspberry Pi {pi_model} has no hardware H.264 encoder, using software encoder"
+        )
         return False
 
     # On ARM, check if h264_v4l2m2m is available

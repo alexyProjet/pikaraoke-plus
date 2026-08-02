@@ -6,7 +6,9 @@ and fair queue algorithm.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import random
 from typing import Any, Callable
 
@@ -26,6 +28,7 @@ class QueueManager:
         get_now_playing_user: Callable[[], str | None] | None = None,
         filename_from_path: Callable[[str, bool], str] | None = None,
         get_available_songs: Callable[[], Any] | None = None,
+        persistence_path: str | None = None,
     ) -> None:
         self.queue: list[dict[str, Any]] = []
         self._preferences = preferences
@@ -33,6 +36,37 @@ class QueueManager:
         self._get_now_playing_user = get_now_playing_user
         self._filename_from_path = filename_from_path
         self._get_available_songs = get_available_songs
+        self._persistence_path = persistence_path
+        self._load_persisted_queue()
+
+    def _load_persisted_queue(self) -> None:
+        """Restore the queue saved by a previous run, dropping vanished files."""
+        if not self._persistence_path or not os.path.exists(self._persistence_path):
+            return
+        try:
+            with open(self._persistence_path, "r", encoding="utf-8") as f:
+                items = json.load(f)
+        except (OSError, ValueError) as e:
+            logging.warning(f"Could not restore saved queue: {e}")
+            return
+        restored = [
+            item
+            for item in items
+            if isinstance(item, dict) and os.path.exists(item.get("file", ""))
+        ]
+        if restored:
+            self.queue = restored
+            logging.info(f"Restored {len(restored)} song(s) from saved queue")
+
+    def _persist(self) -> None:
+        """Save the queue so it survives restarts."""
+        if not self._persistence_path:
+            return
+        try:
+            with open(self._persistence_path, "w", encoding="utf-8") as f:
+                json.dump(self.queue, f)
+        except OSError as e:
+            logging.warning(f"Could not save queue: {e}")
 
     def is_song_in_queue(self, song_path: str) -> bool:
         """Check if a song is already in the queue."""
@@ -146,6 +180,7 @@ class QueueManager:
                 self.queue.insert(insert_pos, queue_item)
             else:
                 self.queue.append(queue_item)
+        self._persist()
         self._events.emit("queue_update")
         self._events.emit("now_playing_update")
         return [
@@ -193,6 +228,7 @@ class QueueManager:
         # MSG: Message shown after the queue is cleared
         self._events.emit("notification", _("Clear queue"), "danger")
         self.queue = []
+        self._persist()
         self._events.emit("queue_update")
         self._events.emit("now_playing_update")
         self._events.emit("skip_requested")
@@ -211,6 +247,7 @@ class QueueManager:
         item = self.queue.pop(old_index)
         self.queue.insert(new_index, item)
         logging.info(f"Reordered queue: moved index {old_index} to {new_index}")
+        self._persist()
         self._events.emit("queue_update")
         self._events.emit("now_playing_update")
         return True
@@ -250,6 +287,7 @@ class QueueManager:
 
         song = self.queue.pop(0)
         logging.info(f"Popped song from queue: {song['title']}")
+        self._persist()
         return song
 
     def queue_edit(self, song_path: str, action: str) -> bool:
@@ -274,6 +312,7 @@ class QueueManager:
         if action == "delete":
             logging.info("Deleting song from queue: " + song_path)
             del self.queue[index]
+            self._persist()
             self._events.emit("queue_update")
             self._events.emit("now_playing_update")
             return True

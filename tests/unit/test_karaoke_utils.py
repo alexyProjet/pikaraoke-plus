@@ -313,3 +313,35 @@ class TestResetNowPlayingNotification:
         mock_karaoke.reset_now_playing_notification()
 
         assert mock_karaoke.now_playing_notification is None
+
+
+class TestCopyDownloadedSong:
+    """Tests for the post-download copy hook."""
+
+    def test_copy_song_file_copies_to_destination(self, tmp_path):
+        """Test that the file lands in the configured folder, created on demand."""
+        from unittest.mock import MagicMock
+
+        from pikaraoke.karaoke import Karaoke
+
+        instance = MagicMock()
+        instance.post_download_copy_path = str(tmp_path / "share")
+        src = tmp_path / "Song---dQw4w9WgXcQ.mp4"
+        src.write_bytes(b"video")
+
+        Karaoke._copy_song_file(instance, str(src))
+
+        assert (tmp_path / "share" / "Song---dQw4w9WgXcQ.mp4").read_bytes() == b"video"
+
+    def test_copy_song_file_logs_oserror(self, tmp_path, caplog):
+        """Test that a failed copy is logged and does not raise."""
+        from unittest.mock import MagicMock
+
+        from pikaraoke.karaoke import Karaoke
+
+        instance = MagicMock()
+        instance.post_download_copy_path = str(tmp_path / "share")
+
+        Karaoke._copy_song_file(instance, str(tmp_path / "missing.mp4"))
+
+        assert "Failed to copy" in caplog.text

@@ -12,6 +12,7 @@ from pikaraoke.lib.get_platform import (
     get_installed_js_runtime,
     get_os_version,
     get_platform,
+    get_raspberry_pi_model,
     has_js_runtime,
     is_android,
     is_raspberry_pi,
@@ -44,6 +45,51 @@ class TestIsRaspberryPi:
         """Test when device-tree file doesn't exist."""
         with patch("io.open", side_effect=FileNotFoundError):
             assert is_raspberry_pi() is False
+
+
+class TestGetRaspberryPiModel:
+    """Tests for the get_raspberry_pi_model function."""
+
+    def test_pi_5_model(self):
+        """Test model number extraction on a Pi 5."""
+        mock_file = mock_open(read_data="Raspberry Pi 5 Model B Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 5
+
+    def test_pi_4_model(self):
+        """Test model number extraction on a Pi 4."""
+        mock_file = mock_open(read_data="Raspberry Pi 4 Model B Rev 1.2")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 4
+
+    def test_pi_400_maps_to_generation_4(self):
+        """Test that the Pi 400 keyboard model reports its Pi 4 generation."""
+        mock_file = mock_open(read_data="Raspberry Pi 400 Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 4
+
+    def test_pi_500_maps_to_generation_5(self):
+        """Test that the Pi 500 keyboard model reports its Pi 5 generation."""
+        mock_file = mock_open(read_data="Raspberry Pi 500 Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 5
+
+    def test_compute_module_5(self):
+        """Test that Compute Module models are recognized."""
+        mock_file = mock_open(read_data="Raspberry Pi Compute Module 5 Rev 1.0")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() == 5
+
+    def test_unrecognized_model(self):
+        """Test a device-tree model without a number."""
+        mock_file = mock_open(read_data="Generic ARM Board")
+        with patch("builtins.open", mock_file):
+            assert get_raspberry_pi_model() is None
+
+    def test_file_not_found(self):
+        """Test when device-tree file doesn't exist."""
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            assert get_raspberry_pi_model() is None
 
 
 class TestIsAndroid:

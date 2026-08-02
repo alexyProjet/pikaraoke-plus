@@ -130,6 +130,101 @@ const getBackgroundMusicPlayer = () => document.getElementById('background-music
 const getBackgroundVideoPlayer = () => document.getElementById('bg-video');
 const getVideoPlayer = () => $("#video")[0]
 
+// Live audio effects (3-band EQ, boost, auto-level compressor) applied to the
+// karaoke video through the Web Audio API. The graph is only created once
+// settings become non-neutral, so untouched setups keep the direct audio path.
+const AudioFx = {
+  ctx: null,
+  nodes: null,
+  settings: { eq_low: 0, eq_mid: 0, eq_high: 0, gain: 0, auto_level: false },
+
+  parse(raw) {
+    try {
+      return { ...this.settings, ...JSON.parse(raw || "{}") };
+    } catch (e) {
+      console.error("Ignoring invalid audio_fx settings:", raw);
+      return this.settings;
+    }
+  },
+
+  isNeutral(s) {
+    return !s.auto_level && !s.eq_low && !s.eq_mid && !s.eq_high && !s.gain;
+  },
+
+  configure(raw) {
+    this.settings = this.parse(raw);
+    this.refresh();
+  },
+
+  refresh() {
+    if (!this.ctx && this.isNeutral(this.settings)) return;
+    this.ensureGraph();
+    this.apply();
+    this.resume();
+  },
+
+  ensureGraph() {
+    if (this.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    this.ctx = new Ctx();
+    const source = this.ctx.createMediaElementSource(getVideoPlayer());
+    const low = this.ctx.createBiquadFilter();
+    low.type = "lowshelf";
+    low.frequency.value = 200;
+    const mid = this.ctx.createBiquadFilter();
+    mid.type = "peaking";
+    mid.frequency.value = 1000;
+    mid.Q.value = 0.8;
+    const high = this.ctx.createBiquadFilter();
+    high.type = "highshelf";
+    high.frequency.value = 4000;
+    const gain = this.ctx.createGain();
+    const compressor = this.ctx.createDynamicsCompressor();
+    compressor.threshold.value = -24;
+    compressor.knee.value = 30;
+    compressor.ratio.value = 4;
+    // Always-on output limiter so boosted or EQ'd audio never clips
+    const limiter = this.ctx.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.1;
+    source.connect(low);
+    low.connect(mid);
+    mid.connect(high);
+    high.connect(gain);
+    this.nodes = { low, mid, high, gain, compressor, limiter };
+  },
+
+  apply() {
+    if (!this.nodes) return;
+    const s = this.settings;
+    const n = this.nodes;
+    n.low.gain.value = s.eq_low;
+    n.mid.gain.value = s.eq_mid;
+    n.high.gain.value = s.eq_high;
+    n.gain.gain.value = Math.pow(10, s.gain / 20);
+    n.gain.disconnect();
+    n.compressor.disconnect();
+    n.limiter.disconnect();
+    if (s.auto_level) {
+      n.gain.connect(n.compressor);
+      n.compressor.connect(n.limiter);
+    } else {
+      n.gain.connect(n.limiter);
+    }
+    n.limiter.connect(this.ctx.destination);
+  },
+
+  // Autoplay policies can leave the context suspended until a gesture or
+  // playback event; retry on both so audio never stays silent
+  resume() {
+    if (this.ctx && this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+  },
+};
+
 const getNextBgMusicSong = () => {
   let currentSong = getBackgroundMusicPlayer().getAttribute('src');
   let nextSong = bg_playlist[0];
@@ -218,14 +313,15 @@ const updateBackgroundMediaState = (immediate = false) => {
 
 const flashNotification = (message, categoryClass) => {
   const sn = $("#splash-notification");
-  if (sn.html()) return;
-  sn.html(message);
+  if (sn.text()) return;
+  // Notifications embed user-provided names and titles; render as text
+  sn.text(message);
   sn.addClass(categoryClass);
   sn.fadeIn();
   setTimeout(() => {
     sn.fadeOut();
     setTimeout(() => {
-      sn.html("");
+      sn.text("");
       sn.removeClass(categoryClass);
     }, 450);
   }, 3000);
@@ -263,19 +359,19 @@ const handleNowPlayingUpdate = (np) => {
   if (np.now_playing) {
 
     // Handle updating now playing HTML
-    let nowPlayingHtml = `<span>${np.now_playing}</span> `;
+    let nowPlayingHtml = `<span>${escapeHtml(np.now_playing)}</span> `;
     if (np.now_playing_transpose !== 0) {
       nowPlayingHtml += `<span class='is-size-6 has-text-success'><b>Key</b>: ${getSemitonesLabel(np.now_playing_transpose)} </span>`;
     }
     $("#now-playing-song").html(nowPlayingHtml);
-    $("#now-playing-singer").html(np.now_playing_user);
+    $("#now-playing-singer").text(np.now_playing_user);
     $("#now-playing").fadeIn();
   } else {
     $("#now-playing").fadeOut();
   }
   if (np.up_next) {
-    $("#up-next-song").html(np.up_next);
-    $("#up-next-singer").html(np.next_user);
+    $("#up-next-song").text(np.up_next);
+    $("#up-next-singer").text(np.next_user);
     $("#up-next").fadeIn();
   } else {
     $("#up-next").fadeOut();
@@ -437,8 +533,11 @@ const setupOverlayMenus = () => {
 const setupVideoPlayer = () => {
   $('#video-container').hide();
   const video = getVideoPlayer();
+  AudioFx.configure(PikaraokeConfig.audioFxRaw);
+  document.addEventListener("click", () => AudioFx.resume());
   video.addEventListener("play", () => {
     $("#video-container").show();
+    AudioFx.refresh();
     if (isMaster) {
       setTimeout(() => { socket.emit("start_song") }, 1200);
     }
@@ -535,6 +634,7 @@ const PREFERENCE_EFFECTS = {
     screensaverTimeoutSeconds = v;
     PikaraokeConfig.screensaverTimeout = v;
   },
+  audio_fx:            (v) => AudioFx.configure(v),
 };
 
 const parsePreferenceValue = (value) => {

@@ -90,6 +90,14 @@ def parse_pikaraoke_args() -> argparse.Namespace:
         required=False,
     )
     parser.add_argument(
+        "--post-download-copy-path",
+        nargs="+",
+        help="Copy each successfully downloaded song to this folder, "
+        "e.g. a network share watched by another tool. (default: none)",
+        default=None,
+        required=False,
+    )
+    parser.add_argument(
         "--youtubedl-proxy",
         help="Proxy server to use for yt-dlp, in case blocked by a firewall",
         required=False,
@@ -368,6 +376,9 @@ def parse_pikaraoke_args() -> argparse.Namespace:
         print(f"Background video not found: {bg_video_path}. Setting to None")
 
     dl_path = os.path.expanduser(arg_path_parse(args.download_path) or default_dl_dir)
+
+    copy_path = arg_path_parse(args.post_download_copy_path)
+    args.post_download_copy_path = os.path.expanduser(copy_path) if copy_path else None
 
     args.logo_path = logo_path
     args.bg_music_path = bg_music_path

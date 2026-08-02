@@ -605,3 +605,72 @@ class TestQueueManagerHelpers:
 
         qm.enqueue("/songs/song1---abc.mp4", "LimitedUser")
         assert qm.is_user_limited("LimitedUser") is True
+
+
+class TestQueuePersistence:
+    """Tests for queue persistence across restarts."""
+
+    def _make_manager(self, tmp_path, persistence_file):
+        from pikaraoke.lib.events import EventSystem
+        from pikaraoke.lib.preference_manager import PreferenceManager
+
+        preferences = PreferenceManager(config_file_path=str(tmp_path / "config.ini"))
+        return QueueManager(
+            preferences=preferences,
+            events=EventSystem(),
+            filename_from_path=lambda path, *args: path,
+            persistence_path=str(persistence_file),
+        )
+
+    def test_queue_restored_after_restart(self, tmp_path):
+        """Test that a saved queue is reloaded by a new manager instance."""
+        song = tmp_path / "song.mp4"
+        song.write_bytes(b"x")
+        persistence_file = tmp_path / "queue.json"
+
+        qm = self._make_manager(tmp_path, persistence_file)
+        qm.enqueue(str(song), "Alice")
+
+        restored = self._make_manager(tmp_path, persistence_file)
+        assert len(restored.queue) == 1
+        assert restored.queue[0]["user"] == "Alice"
+        assert restored.queue[0]["file"] == str(song)
+
+    def test_vanished_files_dropped_on_restore(self, tmp_path):
+        """Test that songs deleted from disk are not restored."""
+        song = tmp_path / "song.mp4"
+        song.write_bytes(b"x")
+        persistence_file = tmp_path / "queue.json"
+
+        qm = self._make_manager(tmp_path, persistence_file)
+        qm.enqueue(str(song), "Alice")
+        song.unlink()
+
+        restored = self._make_manager(tmp_path, persistence_file)
+        assert restored.queue == []
+
+    def test_corrupt_persistence_file_ignored(self, tmp_path):
+        """Test that an unreadable queue file does not break startup."""
+        persistence_file = tmp_path / "queue.json"
+        persistence_file.write_text("not json")
+
+        restored = self._make_manager(tmp_path, persistence_file)
+        assert restored.queue == []
+
+    def test_pop_and_delete_are_persisted(self, tmp_path):
+        """Test that removals update the saved queue."""
+        songs = []
+        for n in range(3):
+            song = tmp_path / f"song{n}.mp4"
+            song.write_bytes(b"x")
+            songs.append(str(song))
+        persistence_file = tmp_path / "queue.json"
+
+        qm = self._make_manager(tmp_path, persistence_file)
+        for song_path in songs:
+            qm.enqueue(song_path, "Alice")
+        qm.pop_next()
+        qm.queue_edit(songs[2], "delete")
+
+        restored = self._make_manager(tmp_path, persistence_file)
+        assert [item["file"] for item in restored.queue] == [songs[1]]

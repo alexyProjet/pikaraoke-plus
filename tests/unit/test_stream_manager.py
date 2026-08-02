@@ -305,13 +305,13 @@ class TestStreamManagerCheckHlsBuffer:
         ids=["os_error", "unexpected_error"],
     )
     def test_returns_false_on_stream_size_error(self, tmp_path, test_prefs, error):
-        """Test returns False when get_current_stream_size raises an exception."""
+        """Test returns False when scanning the stream directory raises an exception."""
         sm = StreamManager(test_prefs)
         self._create_segments(tmp_path)
         mock_fr = self._make_mock_fr(tmp_path, "#EXTM3U\n")
-        mock_fr.get_current_stream_size.side_effect = error
 
-        result = sm._check_hls_buffer(mock_fr, 150000)
+        with patch("os.scandir", side_effect=error):
+            result = sm._check_hls_buffer(mock_fr, 150000)
 
         assert result is False
 

@@ -287,22 +287,25 @@ class StreamManager:
             if os.path.getsize(fr.output_file) == 0:
                 return False
 
-            # Count segment files directly (works even before playlist is written)
+            # Count segments and total stream size in one directory pass
+            # (works even before playlist is written)
             stream_uid_str = str(fr.stream_uid)
-            segment_files = [
-                f for f in os.listdir(fr.tmp_dir) if stream_uid_str in f and f.endswith(".m4s")
-            ]
-            segment_count = len(segment_files)
+            segment_count = 0
+            stream_size = 0
+            with os.scandir(fr.tmp_dir) as entries:
+                for entry in entries:
+                    if stream_uid_str not in entry.name:
+                        continue
+                    stream_size += entry.stat().st_size
+                    if entry.name.endswith(".m4s"):
+                        segment_count += 1
             min_segments = 3
 
-            if segment_count >= min_segments:
-                stream_size = fr.get_current_stream_size()
-                if stream_size >= buffer_size:
-                    logging.debug(
-                        f"Buffering complete. Stream size: {stream_size}, "
-                        f"Segments: {segment_count}"
-                    )
-                    return True
+            if segment_count >= min_segments and stream_size >= buffer_size:
+                logging.debug(
+                    f"Buffering complete. Stream size: {stream_size}, Segments: {segment_count}"
+                )
+                return True
         except FileNotFoundError:
             pass  # Temp dir doesn't exist yet
         except OSError as e:

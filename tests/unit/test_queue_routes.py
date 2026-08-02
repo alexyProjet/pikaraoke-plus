@@ -257,3 +257,96 @@ class TestQueueEditSocketUpdates:
         assert qm.queue[3]["file"] == "/songs/song2.mp4"
         assert len(queue_updates) == 1, "queue_update event should be emitted once"
         assert len(now_playing_updates) == 1, "now_playing_update event should be emitted once"
+
+
+class TestGuestQueueEdit:
+    """Tests for guests managing their own queue entries without admin rights."""
+
+    AJAX = {"X-Requested-With": "XMLHttpRequest"}
+
+    @pytest.fixture
+    def app_with_secret(self):
+        """Create a Flask app with secret key for session support."""
+        app = Flask(__name__)
+        app.secret_key = "test"
+        app.register_blueprint(queue_bp)
+        app.extensions["babel"] = MagicMock()
+        return app
+
+    @pytest.fixture
+    def client_with_session(self, app_with_secret):
+        """Create a test client with session support."""
+        return app_with_secret.test_client()
+
+    def _mock_karaoke(self):
+        mock_karaoke = MagicMock()
+        mock_karaoke.queue_manager.queue = [_make_queue_item(1), _make_queue_item(2)]
+        mock_karaoke.queue_manager.queue_edit.return_value = True
+        mock_karaoke.song_manager.display_name_from_path.return_value = "song"
+        return mock_karaoke
+
+    @patch("pikaraoke.routes.queue.is_admin", return_value=False)
+    @patch("pikaraoke.routes.queue.get_karaoke_instance")
+    @patch("pikaraoke.routes.queue._", side_effect=lambda x: x)
+    def test_guest_can_delete_own_song(
+        self, mock_gettext, mock_get_instance, mock_is_admin, client_with_session
+    ):
+        """A guest whose cookie name matches the entry's user can delete it."""
+        mock_karaoke = self._mock_karaoke()
+        mock_get_instance.return_value = mock_karaoke
+
+        client_with_session.set_cookie("user", "User1")
+        response = client_with_session.get(
+            "/queue/edit?action=delete&song=/songs/song1.mp4", headers=self.AJAX
+        )
+
+        assert response.status_code == 200
+        assert json.loads(response.data)["success"] is True
+        mock_karaoke.queue_manager.queue_edit.assert_called_once_with("/songs/song1.mp4", "delete")
+
+    @patch("pikaraoke.routes.queue.is_admin", return_value=False)
+    @patch("pikaraoke.routes.queue.get_karaoke_instance")
+    @patch("pikaraoke.routes.queue._", side_effect=lambda x: x)
+    def test_guest_cannot_delete_others_song(
+        self, mock_gettext, mock_get_instance, mock_is_admin, client_with_session
+    ):
+        """A guest cannot delete an entry queued by someone else."""
+        mock_get_instance.return_value = self._mock_karaoke()
+
+        client_with_session.set_cookie("user", "User1")
+        response = client_with_session.get(
+            "/queue/edit?action=delete&song=/songs/song2.mp4", headers=self.AJAX
+        )
+
+        assert response.status_code == 403
+
+    @patch("pikaraoke.routes.queue.is_admin", return_value=False)
+    @patch("pikaraoke.routes.queue.get_karaoke_instance")
+    @patch("pikaraoke.routes.queue._", side_effect=lambda x: x)
+    def test_guest_cannot_move_own_song(
+        self, mock_gettext, mock_get_instance, mock_is_admin, client_with_session
+    ):
+        """Only delete is allowed for guests; move actions still need admin."""
+        mock_get_instance.return_value = self._mock_karaoke()
+
+        client_with_session.set_cookie("user", "User1")
+        response = client_with_session.get(
+            "/queue/edit?action=up&song=/songs/song1.mp4", headers=self.AJAX
+        )
+
+        assert response.status_code == 403
+
+    @patch("pikaraoke.routes.queue.is_admin", return_value=False)
+    @patch("pikaraoke.routes.queue.get_karaoke_instance")
+    @patch("pikaraoke.routes.queue._", side_effect=lambda x: x)
+    def test_guest_without_cookie_cannot_delete(
+        self, mock_gettext, mock_get_instance, mock_is_admin, client_with_session
+    ):
+        """No user cookie means no guest deletion rights."""
+        mock_get_instance.return_value = self._mock_karaoke()
+
+        response = client_with_session.get(
+            "/queue/edit?action=delete&song=/songs/song1.mp4", headers=self.AJAX
+        )
+
+        assert response.status_code == 403
