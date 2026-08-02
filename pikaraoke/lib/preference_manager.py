@@ -59,6 +59,7 @@ class PreferenceManager:
             target: Optional object to sync attributes on when preferences change
         """
         self._config_obj = configparser.ConfigParser()
+        self._config_mtime_ns: int | None = None
         self._target = target  # Object to sync attributes on
 
         # Migrate config.ini from old default to new data directory
@@ -87,12 +88,30 @@ class PreferenceManager:
             except OSError as e:
                 logging.error(f"Failed to migrate config file: {e}")
 
+    def _read_config(self) -> None:
+        """Re-read config.ini only when it changed on disk.
+
+        get() runs in hot paths (stream buffering, main loop), so re-reading
+        the file on every access hammers the disk for nothing.
+        """
+        try:
+            mtime_ns = os.stat(self.config_file_path).st_mtime_ns
+        except OSError:
+            # Missing file: nothing to read, invalidate so a future file is picked up
+            self._config_mtime_ns = None
+            return
+
+        if mtime_ns == self._config_mtime_ns:
+            return
+
+        self._config_obj.read(self.config_file_path, encoding="utf-8")
+        self._config_mtime_ns = mtime_ns
+
     def get(
         self, preference: str, default_value: Any = None, section: str = "USERPREFERENCES"
     ) -> Any:
         """Get a preference value, auto-converting to bool/int/float."""
-        # Silently ignores missing files
-        self._config_obj.read(self.config_file_path, encoding="utf-8")
+        self._read_config()
 
         if not self._config_obj.has_section(section):
             return default_value
@@ -117,7 +136,7 @@ class PreferenceManager:
         logging.debug(f"Changing preference [{section}] << {preference} >> to {val}")
         try:
             # Read existing config to preserve other preferences
-            self._config_obj.read(self.config_file_path, encoding="utf-8")
+            self._read_config()
 
             if section not in self._config_obj:
                 self._config_obj.add_section(section)
@@ -127,6 +146,7 @@ class PreferenceManager:
 
             with open(self.config_file_path, "w", encoding="utf-8") as conf:
                 self._config_obj.write(conf)
+            self._track_written_config()
 
             # Auto-sync target object if registered
             if self._target is not None:
@@ -139,16 +159,24 @@ class PreferenceManager:
             logging.debug(f"Failed to change user preference << {preference} >>: {e}")
             return (False, _("Something went wrong! Your preferences were not changed"))
 
+    def _track_written_config(self) -> None:
+        """Record the mtime of the config file we just wrote to keep the cache valid."""
+        try:
+            self._config_mtime_ns = os.stat(self.config_file_path).st_mtime_ns
+        except OSError:
+            self._config_mtime_ns = None
+
     def clear(self) -> tuple[bool, str]:
         """Remove only USERPREFERENCES section, preserving other config sections."""
         try:
-            self._config_obj.read(self.config_file_path, encoding="utf-8")
+            self._read_config()
 
             if self._config_obj.has_section("USERPREFERENCES"):
                 self._config_obj.remove_section("USERPREFERENCES")
 
                 with open(self.config_file_path, "w", encoding="utf-8") as conf:
                     self._config_obj.write(conf)
+                self._track_written_config()
 
                 logging.info(f"Cleared [USERPREFERENCES] from {self.config_file_path}")
             else:

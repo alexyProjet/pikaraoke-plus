@@ -709,3 +709,32 @@ def test_reset_all_preserves_other_sections(temp_config_file):
 
     # Admin section should survive the reset
     assert prefs.get("db_path", section="ADMIN") == "/data/db.sqlite"
+
+
+def test_preference_manager_caches_reads_until_file_changes(temp_config_file):
+    """Test that get() skips disk reads while the config file is unchanged."""
+    from unittest.mock import patch
+
+    prefs = PreferenceManager(temp_config_file)
+    prefs.set("volume", "0.5")
+
+    assert prefs.get("volume") == 0.5
+    with patch.object(prefs._config_obj, "read") as mock_read:
+        assert prefs.get("volume") == 0.5
+        assert prefs.get("volume") == 0.5
+        mock_read.assert_not_called()
+
+
+def test_preference_manager_picks_up_external_file_changes(temp_config_file):
+    """Test that an externally modified config file invalidates the cache."""
+    prefs = PreferenceManager(temp_config_file)
+    prefs.set("volume", "0.5")
+    assert prefs.get("volume") == 0.5
+
+    with open(temp_config_file, "w", encoding="utf-8") as conf:
+        conf.write("[USERPREFERENCES]\nvolume = 0.9\n")
+    # Force a different mtime in case the filesystem clock is too coarse
+    stat = os.stat(temp_config_file)
+    os.utime(temp_config_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+
+    assert prefs.get("volume") == 0.9
