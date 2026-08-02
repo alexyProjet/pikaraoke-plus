@@ -3,6 +3,7 @@
 import io
 import os
 import platform
+import re
 import shutil
 import sys
 
@@ -114,6 +115,21 @@ def get_platform() -> str:
         return "windows"
     else:
         return "unknown"
+
+
+def get_raspberry_pi_model() -> int | None:
+    """Get the Raspberry Pi model number (e.g. 4 for a Pi 4 Model B).
+
+    Returns:
+        Model number, or None if not a Raspberry Pi or the model is unrecognized.
+    """
+    try:
+        with open("/proc/device-tree/model", "r") as file:
+            model = file.read()
+    except OSError:
+        return None
+    match = re.search(r"Raspberry Pi (\d+)", model)
+    return int(match.group(1)) if match else None
 
 
 def get_default_dl_dir(platform: str) -> str:

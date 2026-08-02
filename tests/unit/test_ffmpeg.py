@@ -103,6 +103,26 @@ class TestSupportsHardwareH264Encoding:
             with patch("subprocess.run", side_effect=FileNotFoundError):
                 assert supports_hardware_h264_encoding() is False
 
+    def test_pi_5_returns_false_despite_codec_listed(self):
+        """Test that a Pi 5 uses software encoding even when ffmpeg lists h264_v4l2m2m."""
+        mock_result = MagicMock()
+        mock_result.stdout = b"h264_v4l2m2m encoder available"
+
+        with patch("platform.machine", return_value="aarch64"):
+            with patch("pikaraoke.lib.ffmpeg.get_raspberry_pi_model", return_value=5):
+                with patch("subprocess.run", return_value=mock_result):
+                    assert supports_hardware_h264_encoding() is False
+
+    def test_pi_4_uses_hardware_encoder(self):
+        """Test that a Pi 4 still uses the hardware encoder."""
+        mock_result = MagicMock()
+        mock_result.stdout = b"h264_v4l2m2m encoder available"
+
+        with patch("platform.machine", return_value="aarch64"):
+            with patch("pikaraoke.lib.ffmpeg.get_raspberry_pi_model", return_value=4):
+                with patch("subprocess.run", return_value=mock_result):
+                    assert supports_hardware_h264_encoding() is True
+
 
 class TestIsFfmpegInstalled:
     """Tests for the is_ffmpeg_installed function."""
