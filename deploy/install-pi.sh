@@ -8,7 +8,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SONGS_DIR=/mnt/media/karaoke
-BRIDGE_DIR=/mnt/media/karaoke-analyse
+# Inside the Samba-shared Notflex data root so the PC sees it as K:\karaoke-analyse.
+BRIDGE_DIR=/mnt/media/data/karaoke-analyse
 DATA_DIR="$HOME/.pikaraoke"
 ENV_FILE="$DATA_DIR/pikaraoke.env"
 CONFIG_FILE="$DATA_DIR/config.ini"
