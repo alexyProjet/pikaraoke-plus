@@ -474,16 +474,17 @@
           var file = decodeURIComponent($(this).data('file'));
           var title = decodeURIComponent($(this).data('title'));
           // {# MSG: Confirmation shown when a guest removes their own song from the queue. #}
-          if (!window.confirm({{ _('Remove your song from the queue?') | tojson }} + "\n" + title)) return;
-          $.ajax({
-              url: window.pikaraokeConfig.basePath + "/queue/edit?song=" + encodeURIComponent(file) + "&action=delete",
-              method: 'GET',
-              headers: { 'X-Requested-With': 'XMLHttpRequest' }
-          }).done(function(response) {
-              var result = JSON.parse(response);
-              if (result.message) {
-                  showNotification(result.message, result.success ? "is-success" : "is-danger");
-              }
+          confirmDialog({{ _('Remove your song from the queue?') | tojson }} + "\n" + title, function() {
+              $.ajax({
+                  url: window.pikaraokeConfig.basePath + "/queue/edit?song=" + encodeURIComponent(file) + "&action=delete",
+                  method: 'GET',
+                  headers: { 'X-Requested-With': 'XMLHttpRequest' }
+              }).done(function(response) {
+                  var result = JSON.parse(response);
+                  if (result.message) {
+                      showNotification(result.message, result.success ? "is-success" : "is-danger");
+                  }
+              });
           });
       });
 
