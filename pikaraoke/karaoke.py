@@ -2,10 +2,13 @@
 
 import logging
 import os
+import shutil
 import socket
 import subprocess
 import threading
 import time
+
+import gevent
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -100,6 +103,7 @@ class Karaoke:
         log_level: int = logging.DEBUG,
         logo_path: str | None = None,
         port: int = 5555,
+        post_download_copy_path: str | None = None,
         prefer_hostname: bool | None = None,
         preferred_language: str | None = None,
         socketio=None,
@@ -194,6 +198,7 @@ class Karaoke:
         # Experimental launch-only gate: must be re-passed each run, never persisted to config.
         self.enable_mic_passthrough = enable_mic_passthrough
         self.download_path = download_path
+        self.post_download_copy_path = post_download_copy_path
         self.log_level = log_level
         self.youtubedl_proxy = youtubedl_proxy
         self.additional_ytdl_args = additional_ytdl_args
@@ -249,6 +254,8 @@ class Karaoke:
         self.events.on("song_ended", self.update_now_playing_socket)
         self.events.on("skip_requested", lambda: self.playback_controller.skip(False))
         self.events.on("song_downloaded", self.song_manager.register_download)
+        if self.post_download_copy_path:
+            self.events.on("song_downloaded", self.copy_downloaded_song)
         self.events.on(
             "sync_started",
             lambda: self.socketio.emit("sync_started", namespace="/") if self.socketio else None,
@@ -350,6 +357,23 @@ class Karaoke:
         finally:
             self._sync_lock.release()
             self.events.emit("sync_finished")
+
+    def copy_downloaded_song(self, song_path: str) -> None:
+        """Copy a downloaded song to post_download_copy_path (e.g. a watched share).
+
+        Runs in the hub threadpool so large copies never block the serialized
+        download worker or the web server.
+        """
+        gevent.get_hub().threadpool.spawn(self._copy_song_file, song_path)
+
+    def _copy_song_file(self, song_path: str) -> None:
+        destination = self.post_download_copy_path
+        try:
+            os.makedirs(destination, exist_ok=True)
+            shutil.copy2(song_path, destination)
+            logging.info(f"Copied downloaded song to {destination}: {song_path}")
+        except OSError as e:
+            logging.error(f"Failed to copy {song_path} to {destination}: {e}")
 
     def _load_preferences(self, **cli_overrides: Any) -> None:
         """Load preference-driven attributes from config file.
