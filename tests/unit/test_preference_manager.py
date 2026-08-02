@@ -285,6 +285,7 @@ def test_preference_manager_defaults_exist():
         "high_score_phrases",
         "show_splash_clock",
         "mic_settings",
+        "audio_fx",
         "enable_title_tidy",
         "metadata_provider",
         "itunes_search_country",

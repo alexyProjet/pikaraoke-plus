@@ -46,6 +46,7 @@ class PreferenceManager:
         "high_score_phrases": "",
         "show_splash_clock": False,
         "mic_settings": "{}",
+        "audio_fx": "{}",
         "enable_title_tidy": False,
         "metadata_provider": "itunes",
         "itunes_search_country": "US",
