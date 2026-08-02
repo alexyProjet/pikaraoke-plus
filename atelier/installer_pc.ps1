@@ -26,7 +26,10 @@ if (-not (Test-Path "$venv\Scripts\python.exe")) {
 Write-Host "== Installation de demucs (long au premier passage) =="
 & "$venv\Scripts\python.exe" -m pip install --quiet --upgrade pip
 & "$venv\Scripts\pip.exe" install --quiet torch torchaudio --index-url https://download.pytorch.org/whl/cu124
-& "$venv\Scripts\pip.exe" install --quiet demucs numpy
+& "$venv\Scripts\pip.exe" install --quiet demucs numpy soundfile
+# hf_xet (telechargeur Hugging Face en Rust) plante avec "Fatal Error: HW
+# capability" sur ce PC ; sans lui, huggingface_hub retombe sur du HTTP simple.
+& "$venv\Scripts\pip.exe" uninstall --quiet -y hf_xet 2>$null
 
 Write-Host "== Tache planifiee (demarrage a l'ouverture de session) =="
 $commande = "`"$venv\Scripts\pythonw.exe`" `"$script`" --atelier `"$PartageAtelier`" --bibliotheque `"$PartageBibliotheque`""

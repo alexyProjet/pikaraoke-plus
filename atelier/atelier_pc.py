@@ -251,6 +251,10 @@ class Watcher:
 
 
 def main() -> int:
+    # The hf_xet download plugin aborts with "Fatal Error: HW capability" on
+    # some machines; plain HTTP downloads work everywhere.
+    os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--atelier", default=DEFAULT_ATELIER, help="shared workshop folder")
     parser.add_argument("--bibliotheque", default=DEFAULT_LIBRARY, help="shared library folder")
