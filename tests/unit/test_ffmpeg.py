@@ -5,12 +5,53 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from pikaraoke.lib.ffmpeg import (
+    build_ffmpeg_cmd,
     get_ffmpeg_version,
     get_media_duration,
     is_ffmpeg_installed,
     is_transpose_enabled,
     supports_hardware_h264_encoding,
 )
+
+
+def make_file_resolver(extension: str = ".mp4") -> MagicMock:
+    """Create a mock FileResolver for build_ffmpeg_cmd tests."""
+    fr = MagicMock()
+    fr.file_path = f"/songs/test{extension}"
+    fr.file_extension = extension
+    fr.cdg_file_path = None
+    fr.output_file = "/tmp/out.m3u8"
+    fr.init_filename = "init.mp4"
+    fr.segment_pattern = "/tmp/seg_%03d.m4s"
+    return fr
+
+
+class TestBuildFfmpegCmdHlsAudio:
+    """Tests for audio codec selection in the HLS output branch."""
+
+    def test_clean_mp4_copies_audio(self):
+        """Test that an untouched mp4 source copies the audio stream."""
+        cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=False)
+        args = cmd.get_args()
+        assert "copy" in args[args.index("-acodec") + 1]
+
+    def test_transposed_mp4_reencodes_audio(self):
+        """Test that pitch shifting forces AAC re-encoding."""
+        cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=2, normalize_audio=False)
+        args = cmd.get_args()
+        assert args[args.index("-acodec") + 1] == "aac"
+
+    def test_normalized_mp4_reencodes_audio(self):
+        """Test that loudness normalization forces AAC re-encoding."""
+        cmd = build_ffmpeg_cmd(make_file_resolver(), semitones=0, normalize_audio=True)
+        args = cmd.get_args()
+        assert args[args.index("-acodec") + 1] == "aac"
+
+    def test_mkv_reencodes_audio(self):
+        """Test that non-mp4 containers re-encode audio even without processing."""
+        cmd = build_ffmpeg_cmd(make_file_resolver(".mkv"), semitones=0, normalize_audio=False)
+        args = cmd.get_args()
+        assert args[args.index("-acodec") + 1] == "aac"
 
 
 class TestGetFfmpegVersion:

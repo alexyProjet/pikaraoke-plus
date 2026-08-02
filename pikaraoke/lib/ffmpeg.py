@@ -138,18 +138,24 @@ def build_ffmpeg_cmd(
         )
     else:
         # HLS format with fMP4 segments
-        # Both MP4 and HLS streaming modes use this - difference is in serving:
-        # - mp4: Stream concatenates init + segments for progressive playback
-        # - hls: Browser requests segments via .m3u8 playlist
+        # Copy the audio stream when no processing is needed, but only trust
+        # .mp4 sources (AAC audio) - mkv/webm/avi may carry codecs browsers
+        # cannot play inside fMP4 segments
+        if acodec == "copy" and fr.file_extension == ".mp4":
+            audio_args: dict[str, Any] = {"acodec": "copy"}
+        else:
+            audio_args = {
+                "acodec": "aac",
+                "audio_bitrate": "192k",
+                "ac": 2,  # Force stereo
+                "ar": 48000,  # Standard sample rate
+            }
         output = ffmpeg.output(
             audio,
             video,
             fr.output_file,
             vcodec=vcodec,
-            acodec="aac",
-            audio_bitrate="192k",
-            ac=2,  # Force stereo
-            ar=48000,  # Standard sample rate
+            **audio_args,
             preset="ultrafast",
             f="hls",
             hls_time=3,
