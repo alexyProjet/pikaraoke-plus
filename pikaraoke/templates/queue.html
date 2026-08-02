@@ -164,6 +164,8 @@
       html += '<a class="has-text-grey-light is-small is-text now-playing-options-btn" title="{{ _("Options") | forceescape }}">';
       html += '<i class="icon-cog is-size-5"></i></a>';
       html += '</td>';
+    } else {
+      html += '<td style="width: ' + COL_WIDTH.options + ';"></td>';
     }
     html += '</tr>';
     return html;
@@ -313,6 +315,14 @@
       html += '<a class="has-text-grey-light is-small is-text queue-song-options-btn" data-index="' + index + '" data-file="' + escape(e.file) + '" data-title="' + escape(e.title) + '" title="{{ _("Options") | forceescape }}">';
       html += '<i class="icon-cog is-size-5"></i></a>';
       html += '</td>';
+    } else {
+      // Guests can remove the songs they queued themselves
+      html += '<td style="width: ' + COL_WIDTH.options + '; vertical-align: middle; text-align: right; padding-right: 10px;">';
+      if (getUserCookie() && e.user === getUserCookie()) {
+        html += '<a class="has-text-danger is-small is-text queue-song-remove-btn" data-file="' + escape(e.file) + '" data-title="' + escape(e.title) + '" title="{{ _("Remove my song") | forceescape }}">';
+        html += '<i class="icon-trash-empty is-size-5"></i></a>';
+      }
+      html += '</td>';
     }
 
     html += '</tr>';
@@ -323,7 +333,7 @@
     var html = "<tbody>";
     var queue = window.queuePageState.queue;
     var np = window.queuePageState.nowPlaying;
-    var colSpan = isAdmin ? 4 : 2;
+    var colSpan = isAdmin ? 4 : 3;
 
     if (np && np.now_playing) {
       html += generateNowPlayingRow(np);
@@ -456,6 +466,25 @@
       $('.modal-background').click(function() {
           window.closeSongOptions();
           window.closeNowPlayingOptions();
+      });
+
+      // Guest remove-own-song button
+      $(document).off('click.removeOwn').on('click.removeOwn', '.queue-song-remove-btn', function(e) {
+          e.preventDefault();
+          var file = decodeURIComponent($(this).data('file'));
+          var title = decodeURIComponent($(this).data('title'));
+          // {# MSG: Confirmation shown when a guest removes their own song from the queue. #}
+          if (!window.confirm({{ _('Remove your song from the queue?') | tojson }} + "\n" + title)) return;
+          $.ajax({
+              url: window.pikaraokeConfig.basePath + "/queue/edit?song=" + encodeURIComponent(file) + "&action=delete",
+              method: 'GET',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          }).done(function(response) {
+              var result = JSON.parse(response);
+              if (result.message) {
+                  showNotification(result.message, result.success ? "is-success" : "is-danger");
+              }
+          });
       });
 
       // Queue song options button (for queued songs)

@@ -108,13 +108,27 @@ def reorder(form):
     return json.dumps({"success": False})
 
 
+def _guest_owns_entry(song: str) -> bool:
+    """Check whether the queue entry belongs to the requesting guest's cookie name."""
+    user = request.cookies.get("user")
+    if not user:
+        return False
+    k = get_karaoke_instance()
+    return any(e["file"] == song and e["user"] == user for e in k.queue_manager.queue)
+
+
 @queue_bp.route("/queue/edit", methods=["GET"])
 @queue_bp.arguments(QueueEditQuery, location="query")
 def queue_edit(query):
-    """Edit queue items (admin only)."""
+    """Edit queue items (admin, or guests removing their own songs)."""
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    action = query["action"]
 
-    if not is_admin():
+    # Guests may only delete entries they queued themselves
+    authorized = is_admin() or (
+        action == "delete" and _guest_owns_entry(unquote(query.get("song", "")))
+    )
+    if not authorized:
         if is_ajax:
             return json.dumps({"success": False, "error": "Unauthorized"}), 403
         # MSG: Message shown when non-admin tries to edit queue
@@ -122,7 +136,6 @@ def queue_edit(query):
         return redirect(url_for("queue.queue"))
 
     k = get_karaoke_instance()
-    action = query["action"]
     success = False
     message = ""
 
