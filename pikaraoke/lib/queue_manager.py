@@ -50,7 +50,9 @@ class QueueManager:
             logging.warning(f"Could not restore saved queue: {e}")
             return
         restored = [
-            item for item in items if isinstance(item, dict) and os.path.exists(item.get("file", ""))
+            item
+            for item in items
+            if isinstance(item, dict) and os.path.exists(item.get("file", ""))
         ]
         if restored:
             self.queue = restored

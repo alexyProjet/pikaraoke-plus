@@ -7,11 +7,10 @@ import socket
 import subprocess
 import threading
 import time
-
-import gevent
 from typing import Any
 from urllib.parse import urlsplit
 
+import gevent
 import qrcode
 from flask_babel import _
 from qrcode.image.pure import PyPNGImage
