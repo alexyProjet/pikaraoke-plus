@@ -25,11 +25,11 @@
 }
 
 .control-box a {
-  color: #cccccc;
+  color: var(--dark-text-light);
 }
 
 .control-box a:hover {
-  color: #74ccb3;
+  color: var(--dark-link-hover);
 }
 
 .pagination {
@@ -83,7 +83,7 @@ body.hide-cursor * {
 
 /* Drag and drop highlight */
 .drag-chosen {
-  background-color: #3273dc !important;
+  background-color: var(--dark-link-press) !important;
   opacity: 0.9;
 }
 
@@ -93,7 +93,7 @@ body.hide-cursor * {
 }
 
 @keyframes highlight-fade {
-  0% { background-color: #3273dc; }
+  0% { background-color: var(--dark-link-press); }
   100% { background-color: transparent; }
 }
 
