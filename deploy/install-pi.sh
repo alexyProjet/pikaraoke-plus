@@ -57,6 +57,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
     printf '[USERPREFERENCES]\nenable_fair_queue = True\n' > "$CONFIG_FILE"
 fi
 
+echo "== TV kiosk (cage + chromium) =="
+# The screen service is started on demand from Controle-Pi, never at boot:
+# install it but do not enable it.
+sudo apt-get install -y -qq cage chromium-browser alsa-utils
+sudo cp "$REPO_DIR/deploy/karaoke-ecran.service" /etc/systemd/system/karaoke-ecran.service
+
 echo "== systemd service =="
 sudo cp "$REPO_DIR/deploy/pikaraoke.service" /etc/systemd/system/pikaraoke.service
 sudo systemctl daemon-reload
