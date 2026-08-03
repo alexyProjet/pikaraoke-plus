@@ -37,6 +37,18 @@
 
 	--dark-focus-ring: rgba(240, 101, 149, 0.35);
 	--dark-accent-soft: rgba(240, 101, 149, 0.12);
+
+	/* Party gradient (matches the app icon: violet -> raspberry -> orange) */
+	--violet: #845ef7;
+	--orange-fete: #ff922b;
+	--grad-fete: linear-gradient(135deg, #845ef7, #f06595 55%, #ff922b);
+	--grad-fete-vif: linear-gradient(135deg, #9775fa, #f783ac 55%, #ffa94d);
+	--grad-fete-doux: linear-gradient(
+		135deg,
+		rgba(132, 94, 247, 0.18),
+		rgba(240, 101, 149, 0.16) 55%,
+		rgba(255, 146, 43, 0.12)
+	);
 }
 
 /* ===================================
@@ -50,8 +62,10 @@ body {
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
 	color: var(--dark-text-primary);
 	background-color: var(--dark-bg-primary);
-	/* Faint stage glow at the top of every page */
-	background-image: radial-gradient(60rem 24rem at 50% -12rem, rgba(240, 101, 149, 0.09), transparent 70%);
+	/* Faint multicolor stage glow at the top of every page */
+	background-image: radial-gradient(38rem 20rem at 10% -8rem, rgba(132, 94, 247, 0.16), transparent 65%),
+		radial-gradient(38rem 20rem at 90% -8rem, rgba(255, 146, 43, 0.1), transparent 65%),
+		radial-gradient(60rem 24rem at 50% -12rem, rgba(240, 101, 149, 0.1), transparent 70%);
 	background-repeat: no-repeat;
 }
 
@@ -99,6 +113,17 @@ h6,
 
 .subtitle {
 	color: var(--dark-text-light);
+}
+
+/* Page titles pick up the party gradient (readable: large bold text only) */
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+	h1.title {
+		background-image: var(--grad-fete-vif);
+		-webkit-background-clip: text;
+		background-clip: text;
+		-webkit-text-fill-color: transparent;
+		width: fit-content;
+	}
 }
 
 h6 {
@@ -182,10 +207,10 @@ hr {
 	box-shadow: 0 0 0 0.125em var(--dark-focus-ring);
 }
 
-/* Main actions glow raspberry */
+/* Main actions carry the party gradient */
 .button.is-primary,
 .button.is-link {
-	background-image: linear-gradient(135deg, #f06595, #e64980);
+	background-image: var(--grad-fete);
 	background-color: var(--dark-primary);
 	border-color: transparent;
 	color: #ffffff;
@@ -193,8 +218,8 @@ hr {
 
 .button.is-primary:hover,
 .button.is-link:hover {
-	background-image: linear-gradient(135deg, #f783ac, #f06595);
-	box-shadow: 0 2px 12px rgba(240, 101, 149, 0.35);
+	background-image: var(--grad-fete-vif);
+	box-shadow: 0 2px 14px rgba(240, 101, 149, 0.35);
 	color: #ffffff;
 }
 
@@ -448,6 +473,7 @@ input[type="range"] {
 
 /* Current page pill */
 .navbar-item.is-active {
+	background-image: var(--grad-fete-doux);
 	background-color: var(--dark-accent-soft);
 	color: var(--dark-primary);
 	font-weight: 600;
@@ -511,8 +537,9 @@ input[type="range"] {
 }
 
 .tabs.is-toggle li.is-active a {
+	background-image: var(--grad-fete);
 	background-color: var(--dark-primary);
-	border-color: var(--dark-primary);
+	border-color: transparent;
 	color: #ffffff;
 }
 
@@ -668,7 +695,7 @@ input[type="range"] {
 
 .hero.is-primary,
 .hero.is-link {
-	background-image: linear-gradient(135deg, #f06595, #e64980);
+	background-image: var(--grad-fete);
 }
 
 .hero.is-info {
@@ -700,12 +727,12 @@ input[type="range"] {
 }
 
 .progress::-webkit-progress-value {
-	background-image: linear-gradient(90deg, #e64980, #f783ac);
+	background-image: linear-gradient(90deg, #845ef7, #f06595 55%, #ff922b);
 	border-radius: 9999px;
 }
 
 .progress::-moz-progress-bar {
-	background-image: linear-gradient(90deg, #e64980, #f783ac);
+	background-image: linear-gradient(90deg, #845ef7, #f06595 55%, #ff922b);
 	border-radius: 9999px;
 }
 
@@ -755,8 +782,9 @@ input[type="range"] {
 }
 
 .pagination-link.is-current {
+	background-image: var(--grad-fete);
 	background-color: var(--dark-primary);
-	border-color: var(--dark-primary);
+	border-color: transparent;
 	color: #ffffff;
 }
 
