@@ -115,9 +115,11 @@ h6,
 	color: var(--dark-text-light);
 }
 
-/* Page titles pick up the party gradient (readable: large bold text only) */
+/* Page titles pick up the party gradient (readable: large bold text only).
+   Some pages use a bare h1 in the header block, others h1.title. */
 @supports (background-clip: text) or (-webkit-background-clip: text) {
-	h1.title {
+	h1.title,
+	.box > h1 {
 		background-image: var(--grad-fete-vif);
 		-webkit-background-clip: text;
 		background-clip: text;
