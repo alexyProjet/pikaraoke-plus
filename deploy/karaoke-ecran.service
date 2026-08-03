@@ -1,10 +1,14 @@
 [Unit]
 Description=Ecran karaoke sur la TV (kiosque plein ecran)
-After=pikaraoke.service systemd-user-sessions.service
+After=pikaraoke.service systemd-user-sessions.service getty@tty1.service
 Wants=pikaraoke.service
+# The kiosk takes over tty1 from the login prompt while it runs
+Conflicts=getty@tty1.service
 
 [Service]
 User=alexy
+# The Pi has no keyboard or mouse: without this wlroots refuses to start
+Environment=WLR_LIBINPUT_NO_DEVICES=1
 # PAM login session gives the process seat access (DRM/input) without X
 PAMName=login
 TTYPath=/dev/tty1
