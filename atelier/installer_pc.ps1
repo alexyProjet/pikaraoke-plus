@@ -10,8 +10,8 @@
 
 param(
     [string]$DossierAtelier = "$env:USERPROFILE\karaoke-atelier",
-    [string]$PartageAtelier = "\\192.168.1.157\data\karaoke-atelier",
-    [string]$PartageBibliotheque = "\\192.168.1.157\data\karaoke-bibliotheque"
+    [string]$PartageAtelier = "\\192.168.1.157\data\karaoke\atelier",
+    [string]$PartageBibliotheque = "\\192.168.1.157\data\karaoke\bibliotheque"
 )
 
 $ErrorActionPreference = "Stop"

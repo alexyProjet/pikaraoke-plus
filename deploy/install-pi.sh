@@ -8,15 +8,27 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SONGS_DIR=/mnt/media/karaoke
-# Inside the Samba-shared Notflex data root so the PC sees it as K:\karaoke-analyse.
-BRIDGE_DIR=/mnt/media/data/karaoke-analyse
-# Job exchange with the PC workshop (K:\karaoke-atelier) and the permanent
-# library of converted songs (K:\karaoke-bibliotheque).
-ATELIER_DIR=/mnt/media/data/karaoke-atelier
-BIBLIO_DIR=/mnt/media/data/karaoke-bibliotheque
+# All karaoke exchange folders live under ONE subtree of the Samba-shared
+# Notflex data root (K:\karaoke\... on the PC). Keeping them grouped — and
+# tagged .nomedia — stops the Zidoo poster wall from scraping karaoke MP4s
+# as movies, while the PC keeps seeing them through the same share.
+KARAOKE_ROOT=/mnt/media/data/karaoke
+BRIDGE_DIR="$KARAOKE_ROOT/analyse"
+# Job exchange with the PC workshop (K:\karaoke\atelier) and the permanent
+# library of converted songs (K:\karaoke\bibliotheque).
+ATELIER_DIR="$KARAOKE_ROOT/atelier"
+BIBLIO_DIR="$KARAOKE_ROOT/bibliotheque"
+# Converted songs must appear in the scanned library; the scanner does not
+# follow symlinks, so they are bind-mounted into the songs dir.
+BIBLIO_MOUNT="$SONGS_DIR/bibliotheque"
 DATA_DIR="$HOME/.pikaraoke"
 ENV_FILE="$DATA_DIR/pikaraoke.env"
 CONFIG_FILE="$DATA_DIR/config.ini"
+
+# Pre-2026-08 layout (flat karaoke-* folders polluting the Notflex root).
+OLD_BRIDGE_DIR=/mnt/media/data/karaoke-analyse
+OLD_ATELIER_DIR=/mnt/media/data/karaoke-atelier
+OLD_BIBLIO_DIR=/mnt/media/data/karaoke-bibliotheque
 
 echo "== System dependencies =="
 sudo apt-get update -qq
@@ -31,17 +43,35 @@ fi
 echo "== Install pikaraoke from $REPO_DIR =="
 uv tool install --force --reinstall "$REPO_DIR"
 
+echo "== Migration from the flat karaoke-* layout (no-op once done) =="
+sudo mkdir -p "$KARAOKE_ROOT"
+# The old bibliotheque is bind-mounted into the songs dir: unmount before
+# moving it, and drop its fstab line (the path changed).
+if [ -d "$OLD_BIBLIO_DIR" ] && [ ! -d "$BIBLIO_DIR" ]; then
+    if mountpoint -q "$BIBLIO_MOUNT"; then
+        sudo umount "$BIBLIO_MOUNT"
+    fi
+    sudo mv "$OLD_BIBLIO_DIR" "$BIBLIO_DIR"
+fi
+sudo sed -i "\#${OLD_BIBLIO_DIR} #d" /etc/fstab
+if [ -d "$OLD_BRIDGE_DIR" ] && [ ! -d "$BRIDGE_DIR" ]; then
+    sudo mv "$OLD_BRIDGE_DIR" "$BRIDGE_DIR"
+fi
+if [ -d "$OLD_ATELIER_DIR" ] && [ ! -d "$ATELIER_DIR" ]; then
+    sudo mv "$OLD_ATELIER_DIR" "$ATELIER_DIR"
+fi
+
 echo "== Data folders =="
 # /mnt/media is root-owned: create as root, hand over to the service user.
 sudo mkdir -p "$SONGS_DIR" "$BRIDGE_DIR" "$ATELIER_DIR/entree" "$ATELIER_DIR/etat" "$BIBLIO_DIR"
-sudo chown -R "$USER:$USER" "$SONGS_DIR" "$BRIDGE_DIR" "$ATELIER_DIR" "$BIBLIO_DIR"
+sudo chown -R "$USER:$USER" "$SONGS_DIR" "$KARAOKE_ROOT"
 mkdir -p "$DATA_DIR"
+# Belt and braces: media scanners honouring .nomedia (Zidoo, Kodi, Android)
+# skip the whole karaoke subtree.
+touch "$KARAOKE_ROOT/.nomedia"
 
-# Converted songs live in the Samba share but must appear in the scanned
-# library; the scanner does not follow symlinks, so bind-mount them in.
-BIBLIO_MOUNT="$SONGS_DIR/bibliotheque"
 sudo mkdir -p "$BIBLIO_MOUNT"
-if ! grep -q "karaoke-bibliotheque" /etc/fstab; then
+if ! grep -qF "$BIBLIO_DIR $BIBLIO_MOUNT" /etc/fstab; then
     echo "$BIBLIO_DIR $BIBLIO_MOUNT none bind,nofail,x-systemd.requires=/mnt/media 0 0" | sudo tee -a /etc/fstab > /dev/null
 fi
 mountpoint -q "$BIBLIO_MOUNT" || sudo mount "$BIBLIO_MOUNT"

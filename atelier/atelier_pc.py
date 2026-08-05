@@ -23,8 +23,8 @@ import tempfile
 import time
 from datetime import datetime
 
-DEFAULT_ATELIER = r"\\192.168.1.157\data\karaoke-atelier"
-DEFAULT_LIBRARY = r"\\192.168.1.157\data\karaoke-bibliotheque"
+DEFAULT_ATELIER = r"\\192.168.1.157\data\karaoke\atelier"
+DEFAULT_LIBRARY = r"\\192.168.1.157\data\karaoke\bibliotheque"
 POLL_SECONDS = 5
 JOB_RETENTION_DAYS = 30
 SINGLETON_PORT = 48765  # bound on localhost so only one watcher runs

@@ -7,7 +7,7 @@ RequiresMountsFor=/mnt/media
 [Service]
 User=alexy
 EnvironmentFile=/home/alexy/.pikaraoke/pikaraoke.env
-ExecStart=/home/alexy/.local/bin/pikaraoke --headless --port 5555 -d /mnt/media/karaoke --post-download-copy-path /mnt/media/data/karaoke-analyse --atelier-path /mnt/media/data/karaoke-atelier --admin-password ${ADMIN_PASSWORD} --skip-youtubedl-upgrade
+ExecStart=/home/alexy/.local/bin/pikaraoke --headless --port 5555 -d /mnt/media/karaoke --post-download-copy-path /mnt/media/data/karaoke/analyse --atelier-path /mnt/media/data/karaoke/atelier --admin-password ${ADMIN_PASSWORD} --skip-youtubedl-upgrade
 Restart=on-failure
 RestartSec=5
 
