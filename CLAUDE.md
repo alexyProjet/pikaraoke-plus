@@ -83,3 +83,13 @@ PRs must include a test plan: a minimal checklist targeting only the changes mad
 - Create abstractions for single uses
 - Write speculative "future-proofing" code
 - Commit debug prints or commented code
+
+
+## Subagents: Haiku for routine work, Opus for the real work
+
+Rule shared by all of Alexy's projects (details in `~/.claude/CLAUDE.md`):
+delegate routine work to the Haiku agents in `~/.claude/agents/`
+(`chercheur-haiku` to search the code, `testeur-haiku` to run tests/lint/build
+and summarise failures, `captures-haiku` for screenshots and JS errors), with a
+closed brief and a short report; keep Opus for design, production code,
+critical review and decisions. Do not default to Opus for these routine tasks.
